@@ -26,3 +26,4 @@ test2 <- dcast(ms_test1[,-1], C~V2)
 rownames(test2) <- test2$C
 test3 <- ifelse(is.na(test2[,-1]) == T, 0, 1)
 ms_test1 <- test3
+save(ms_test1, file = "data/data_sample/MS_sample/data_test1.RData")
