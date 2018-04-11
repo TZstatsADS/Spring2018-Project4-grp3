@@ -1,4 +1,4 @@
-ms_train <- read.csv("data/data_sample/MS_sample/data_train.csv")
+ms_train <- read.csv("../data/data_sample/MS_sample/data_train.csv")
 ind.c <- which(ms_train$V1 == "C")
 test <- unique(ms_train[ind.c, 3])
 ind.c <- c(ind.c, nrow(ms_train)+1)
