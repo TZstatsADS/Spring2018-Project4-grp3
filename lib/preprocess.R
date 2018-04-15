@@ -27,3 +27,13 @@ rownames(test2) <- test2$C
 test3 <- ifelse(is.na(test2[,-1]) == T, 0, 1)
 ms_test1 <- test3
 save(ms_test1, file = "data/data_sample/MS_sample/data_test1.RData")
+
+
+Movie_mat <- dcast(movie_train,User~Movie)
+rownames(Movie_mat) <- Movie_mat$User
+Movie_mat[is.na(Movie_mat)]=0
+Movie_train <- Movie_mat
+
+Movie_mat <- dcast(movie_test,User~Movie)
+rownames(Movie_mat) <- Movie_mat$User
+Movie_mat[is.na(Movie_mat
