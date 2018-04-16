@@ -18,4 +18,4 @@ select_neighbor <- function(userid, weight_mat,
 
 #mat <- matrix(rnorm(100),nrow = 10)
 #colnames(mat) <- 1:10
-select_neighbor(5,mat,run.bestn = TRUE, run.threshold = TRUE,para = list(threshold = 30,n = 7))
+# select_neighbor(5,mat,run.bestn = TRUE, run.threshold = TRUE,para = list(threshold = 30,n = 7))
