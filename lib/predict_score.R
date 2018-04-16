@@ -11,7 +11,7 @@ library(reshape2)
 predict.score <- function(train = movie_train,
                           test = movie_test,
                           weight_mat,
-                          para = list(threshold = 30,n = 17),
+                          para = list(threshold = 0.3,n = 10),
                           run.threshold = FALSE,
                           run.bestn = FALSE){
   
@@ -30,6 +30,8 @@ predict.score <- function(train = movie_train,
     colnames(pred) <- sort(unique(test$Movie))
   }
   else{
+    train_data <- train
+    movie_rowmean <- rep(0,nrow(test))
     pred <- matrix(0,nrow = nrow(test), ncol = ncol(test))
     rownames(pred) <- rownames(test)
     colnames(pred) <- colnames(test)
