@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1523479310192.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3629895954",
+    "id" : "4F54B48",
+    "lastKnownWriteTime" : 1523322168,
+    "last_content_update" : 1523322168,
+    "path" : "~/GitHub/Spring2018-Project4-group3/lib/similarity_weight.R",
+    "project_path" : "lib/similarity_weight.R",
+    "properties" : {
+        "cursorPosition" : "20,7",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
