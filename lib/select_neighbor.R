@@ -19,7 +19,7 @@ select_neighbor <- function(userid, weight_mat,
   return(name_v)
 }
 
-mat <- readRDS("ms_vec_train.RData")
-rownames(mat) <- colnames(mat)
+#mat <- readRDS("ms_vec_train.RData")
+#rownames(mat) <- colnames(mat)
 #colnames(mat) <- 1:10
 #select_neighbor("10010",mat,run.bestn = TRUE, run.threshold = TRUE,para = list(threshold = 0.3,n = 7))
