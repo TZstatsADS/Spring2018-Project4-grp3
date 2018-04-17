@@ -105,7 +105,43 @@ Note: simrank method is written in python
 
 # Step 5: Model-based Algorithm
 ## Clustering (MS Dataset)
+### Cross Validating the cluster model to find best cluster number C
 ```{r}
+source("../lib/cluster_model.R")
+
+preprocess_for_cluster(preprocess.train = F, preprocess.test = F, reshape.train = F, reshape.test = F)
+
+load("../output/ms_train_wide.RData")
+load("../output/ms_test_wide.RData")
+
+list_of_items <- names(train[,-1])
+
+cross.validate.model.clustering <- F
+if(cross.validate.model.clustering){
+  r <- c()
+  parameters <- c(4,5,6,7,8)
+  for(par in parameters){
+    trained.cluster.model <- train.cluster.model(train, C = par)
+    g <- trained.cluster.model$gamma_array
+    m <- trained.cluster.model$mu
+    p <- trained.cluster.model$pi_mat
+    testing <- test.cluster.model(test, gamma_array = g, mu = m, pi_mat = p, list_of_items = list_of_items)
+    r <- c(r, testing$r)
+    print(paste("For number of clusters equal to:", par, "Rank score:", testing$r))
+  }
+  
+  t <- matrix(NA, ncol = length(parameters), nrow = 2)
+  t[1,] <- parameters
+  t[2,] <- r
+  rownames(t) <- c("C", "Rank Score")
+  save(t, file = "../output/cv_cluster_rank_score.Rdata")
+}
+
+load("../output/cv_cluster_rank_score.Rdata")
+print(t)
+best.C <- as.numeric(t[1, which.max(t[2,])])
+best.rank.score <- as.numeric(max(t[2,]))
+print(paste("The best cluster number is:", best.C, ". Rank score is:", best.rank.score))
 
 ```
 
