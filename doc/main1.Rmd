@@ -1,0 +1,122 @@
+---
+title: "Project 4"
+output: html_notebook
+---
+
+packages
+```{r}
+
+
+#source
+```
+
+
+# Step 1: Load Data
+```{r}
+
+```
+
+## Reshape Data
+```{r}
+
+# Save wide ms data to Rdata
+
+
+# Save wide movie data to Rdata
+```
+
+# Step 2: Compute Similarity (weight)
+## Vector Similarity
+### MS data
+```{r}
+
+
+# Save weight in output
+```
+
+### Movie data
+```{r}
+
+
+# Save weight in output
+```
+
+## Mean Sqaure Difference
+### MS data
+```{r}
+
+
+# Save weight in output
+```
+
+### Movie data
+```{r}
+
+
+# Save weight in output
+```
+
+## Simrank (movie)
+Note: simrank method is written in python
+```{r}
+# read in the simrank weight
+
+# Sace weight in output
+```
+
+# Step 3: Cross validate parameters for different selecting neighbor methods
+## Weight Threshold
+```{r}
+
+```
+
+## Best-n-estimators
+```{r}
+
+```
+
+## Combine
+```{r}
+
+```
+
+# Step 4: Prediction & Evaluation
+## MAE
+### MS Data
+```{r}
+
+```
+
+## Movie Data
+```{r}
+
+```
+
+## Rank Score
+### MS Data
+```{r}
+
+```
+
+### Movie Data
+```{r}
+
+```
+
+# Step 5: Model-based Algorithm
+## Clustering (MS Dataset)
+```{r}
+
+```
+
+# Step 6: Prediction & Evaluation
+## MAE
+```{r}
+
+```
+
+## Rank Score
+```{r}
+
+```
+
