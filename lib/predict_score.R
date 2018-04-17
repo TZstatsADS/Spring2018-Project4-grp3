@@ -52,7 +52,7 @@ predict.score <- function(train = movie_train,
       item.ind <- match(colnames(pred),colnames(train_data))
       itemscore <- train_data[col.ind,item.ind]
       pred[i, ] <- movie_rowmean[i] + k * (as.numeric(user.weight) %*% as.matrix(itemscore))
-     if (i > 200) break
+     # if (i > 200) break
     }
     return(pred)
 }
