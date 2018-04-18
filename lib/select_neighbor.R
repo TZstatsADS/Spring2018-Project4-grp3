@@ -1,7 +1,7 @@
 select_neighbor <- function(userid, weight_mat,
                             run.threshold = FALSE,
                             run.bestn = FALSE,
-                            para = list(threshold = 0.3,n = 10)){
+                            para = list(n = 60, threshold = 0.3)){
   if(is.null(rownames(weight_mat))) rownames(weight_mat) <- colnames(weight_mat)
   if(is.null(colnames(weight_mat))) colnames(weight_mat) <- rownames(weight_mat)
   

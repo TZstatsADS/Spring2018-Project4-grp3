@@ -171,20 +171,21 @@ source('../lib/predict_score.R')
 # chose which selecting neighbor method to use
 run.bestn = TRUE
 run.threshold = TRUE
-# using vector similarity weight
-pred.ms.vec <- predict.score.ms(ms_train,
-                                ms_test,
-                                ms_vec_weight,
-                                par = best.par,
-                                run.threshold = run.threshold,
-                                run.bestn = run.bestn)
-# using msd weight
-pred.ms.msd <- predict.score.ms(ms_train,
-                                ms_test,
-                                ms_msd_weight,
-                                par = best.par,
-                                run.threshold = run.threshold,
-                                run.bestn = run.bestn)
+run.pred = FALSE
+if(run.pred){
+  # using vector similarity weight
+  pred.ms.vec <- predict.score.ms(ms_train,
+                                  ms_test,
+                                  ms_vec_weight,
+                                  run.threshold = run.threshold,
+                                  run.bestn = run.bestn)
+  # using msd weight
+  pred.ms.msd <- predict.score.ms(ms_train,
+                                  ms_test,
+                                  ms_msd_weight,
+                                  run.threshold = run.threshold,
+                                  run.bestn = run.bestn)
+}
 ```
 
 ## Movie Data
@@ -192,61 +193,62 @@ pred.ms.msd <- predict.score.ms(ms_train,
 # chose which selecting neighbor method to use
 run.bestn = TRUE
 run.threshold = TRUE
-# using vector similarity weight
-pred.movie.vec <- predict.score.movie(movie_train,
-                                      movie_test,
-                                      movie_vec_weight,
-                                      par = best.par,
-                                      run.threshold = run.threshold,
-                                      run.bestn = run.bestn)
-# using msd similarity weight
-pred.movie.msd <- predict.score.movie(movie_train,
-                                      movie_test,
-                                      movie_msd_weight,
-                                      par = best.par,
-                                      run.threshold = run.threshold,
-                                      run.bestn = run.bestn)
-# using simrank weight
-pred.movie.simrank <- predict.score.movie(movie_train,
-                                          movie_test,
-                                          movie_simrank_weight,
-                                          par = best.par,
-                                          run.threshold = run.threshold,
-                                          run.bestn = run.bestn)
+run.pred = FALSE
+if(run.pred){
+  # using vector similarity weight
+  pred.movie.vec <- predict.score.movie(movie_train,
+                                        movie_test,
+                                        movie_vec_weight,
+                                        par = best.par,
+                                        run.threshold = run.threshold,
+                                        run.bestn = run.bestn)
+  # using msd similarity weight
+  pred.movie.msd <- predict.score.movie(movie_train,
+                                        movie_test,
+                                        movie_msd_weight,
+                                        par = best.par,
+                                        run.threshold = run.threshold,
+                                        run.bestn = run.bestn)
+  # using simrank weight
+  pred.movie.simrank <- predict.score.movie(movie_train,
+                                            movie_test,
+                                            movie_simrank_weight,
+                                            par = best.par,
+                                            run.threshold = run.threshold,
+                                            run.bestn = run.bestn)
+}
 ```
 
 ## MAE
 load functions
 ```{r}
-load('../lib/mea.R')
+source('../lib/mae.R')
 ```
-### MAE for MS Data
-```{r}
-mae.ms.vec <- MAE(pred.ms.vec, ms_test)
-mae.ms.vec
-```
+
 ### MAE for Movie Data
 ```{r}
-mae.movie.vec <- MAE(pred.movie.vec, movie_test)
-mae.movie.vec
+run.MAE = FALSE
+if(run.MAE){
+  mae.movie.vec <- MAE(pred.movie.vec, movie_test)
+  mae.movie.vec
+}
 ```
 
 ## Rank Score
 load functions
 ```{r}
-load('../lib/ranked_scoring.R')
+source('../lib/ranked_scoring.R')
 ```
 ### Rank score MS Data
 ```{r}
-rankscore.ms.vec <- rank_matrix(pred.ms.vec, ms_test)
-rankscore.ms.vec
-```
-### Rank score Movie Data
-```{r}
-rankscore.movie.vec <- rank_matrix(pred.movie.vec, movie_test)
-rankscore.movie.vec
+run.rankscore = FALSE
+if(run.rankscore){
+  rankscore.ms.vec <- rank_matrix(pred.ms.vec, ms_test)
+  rankscore.ms.vec
+}
 ```
 
+##
 # Step 5: Model-based Algorithm
 ## Clustering (MS Dataset)
 ### Cross Validating the cluster model to find best cluster number C
