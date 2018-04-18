@@ -84,6 +84,11 @@ mat_weight <- function(data = movie_train,
                        run.msd = FALSE,
                        save.csv = FALSE){
 
+  if(run.vec == FALSE & run.msd == FALSE) {
+    cat('nothing need to do, load output data instead\n')
+    return(0)
+  }
+  
   # determine the data is binary or multi score
   ## in this project, MS_data is binary case and movie is multi case
   if(max(data) > 2) run.binary = FALSE

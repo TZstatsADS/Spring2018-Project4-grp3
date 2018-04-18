@@ -1,0 +1,4 @@
+load("/Users/fanerror/GitHub/Spring2018-Project4-grp3/output/vec_weights.RData")
+ls()
+dim(vec_weights)
+q()
