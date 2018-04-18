@@ -11,7 +11,7 @@ Term: Spring 2018
 	+ Peifeng Hong(ph2534)
 	+ Wenshan Wang(ww2468)
 	+ Fan Yan(fy2232)
-	+ Sitong Chen(fy2232)
+	+ Sitong Chen(sc4283)
 	
 + Project summary: 
 For this project, we implemented different collaborative filtering algorithms on 2 datasets and evaluated the performances. Our team worked on:
@@ -28,7 +28,7 @@ Selecting Neighbors - Combined (Data1,2)
 Model-based Algorithm:
 Cluster models (Data1)
 
-**Contribution statement**: ([default](doc/a_note_on_contributions.md)) All team members contributed equally in all stages of this project. All team members approve our work presented in this GitHub repository including this contributions statement. 
+**Contribution statement**: ([Contribution Statement](doc/a_note_on_contributions.md)) All team members contributed equally in all stages of this project. All team members approve our work presented in this GitHub repository including this contributions statement. 
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
