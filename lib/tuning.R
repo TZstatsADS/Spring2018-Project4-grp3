@@ -6,8 +6,8 @@ load("output/ms_vec_data.Rdata")
 tuning_MS <- function(ms_train,ms_test,ms_weight,method){
   if (method == "bestn"){
     result <- rep(0,100)
-    for (i in 1:15){
-      n_para <- i * 2
+    for (i in 1:40){
+      n_para <- i * 5
       pred <- predict.score(ms_train,ms_test,ms_weight,run.threshold = F,run.bestn = T,n =n_para)
       result[i] <- ranked_scoring(pred,ms_test)
     }
