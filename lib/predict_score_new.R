@@ -15,8 +15,9 @@ predict.score <- function(train,
                               nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
                                                      para = list(threshold = threshold,n = n),
                                                      run.bestn = run.bestn, run.threshold = run.threshold)
-                              if (is.na(nei)) {
+                              if (sum(is.na(nei)) != 0) {
                                 mat[a, ] <- rep(0,ncol(test))
+                                next
                               }
                               ind <- match(nei, rownames(weight))
                               w <- weight[a, ind]
@@ -28,4 +29,4 @@ predict.score <- function(train,
                             return(mat_final)
 }
 
-# check1 <- predict.score(train = ms_train1, test = ms_test1, weight = t1, run.threshold = T, run.bestn = T)
+#check1 <- predict.score(train = ms_train, test = ms_test, weight = ms_vec_weight, run.threshold = F, run.bestn = T)
