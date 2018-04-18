@@ -15,3 +15,5 @@ Fan Yang(fy2232): main.rmd, vector similarity, mean-square difference, selecting
 
 Sitong Chen(sc4283): simrank, vector similarity, rank score & MAE evaluation, tune parameter, readme file
 
+
+
