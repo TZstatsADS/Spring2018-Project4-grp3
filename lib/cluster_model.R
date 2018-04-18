@@ -93,12 +93,11 @@ train.cluster.model<- function(data, C, iterations=30){
       gamma_array[row,,d] <- gamma_array[row,,d]/col_sum
     }
   }
-  
+
   pi_mat<- matrix(0, nrow=num_of_users, ncol=C)
-  # pi_mat_old<- matrix(0, nrow=num_of_users, ncol=C)
   phi <- matrix(NA, nrow = num_of_users, ncol = C)
   
-  
+  # iter = 1
   for(iter in 1:iterations){
     pi_mat_old<- pi_mat
     
@@ -114,8 +113,6 @@ train.cluster.model<- function(data, C, iterations=30){
     }
     print("log_fi_prod is done")
     
-    all(c(1,2,0,6)>0)
-    
     for (row in 1:nrow(phi)) {
       phi[row,] <- phi[row,]*mu
     }
@@ -125,16 +122,17 @@ train.cluster.model<- function(data, C, iterations=30){
     }
     pi_mat <- phi
     print("E-step done")
-    
+
     
     # M-step
     ## Update mu
-    mu<- apply(pi_mat, 2, mean)/num_of_users
+    mu<- apply(pi_mat, 2, mean)
+    
     ## Update gamma_array
     for(c in 1:C){
       for(j in 1:num_of_items){
         l <- t(pi_mat[, c]) %*% data[, j]
-        gamma_array[2, j, c] <- l/sum(pi_mat[ ,c])
+        gamma_array[2, j, c] <- max(min(l/sum(pi_mat[ ,c]), 1), 0)
         gamma_array[1, j, c] <- 1 - gamma_array[2, j, c] 
       }
     }
