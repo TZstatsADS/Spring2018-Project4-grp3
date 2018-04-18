@@ -14,7 +14,7 @@ select_neighbor <- function(userid, weight_mat,
   } else if (run.bestn == TRUE & run.threshold == TRUE){
     vec <- weight_mat[which(rownames(weight_mat) != userid),userid]
     vec <- vec[abs(vec) > para$threshold]
-    name_v <- names(sort(vec,decreasing = T))[1:para$n]
+    name_v <- names(sort(vec,decreasing = T))[1:min(para$n,length(vec))]
   }
   return(name_v)
 }
