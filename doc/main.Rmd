@@ -1,6 +1,8 @@
 ---
 title: "Project 4"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 # Overview
 In this project, we aim to predict user-item score through collaborative filtering. In the memoery based methods, we adopted 3 similarity metrics (vector similarity, mean square difference and simrank) to calculate weight, in step 2.And then, we used weight threshold and best-n-estimator, or a combination of both to select neighbours. As for evaluation, we implemented mae and ranked scoring. In order to find the suitable threshold and the best n, we tuned those parameters in step 3.  
@@ -10,6 +12,7 @@ In step 5 and 6, we implemented and evaluated the performance of a model based m
 load packages
 ```{r}
 library(reshape2)
+library(ggplot2)
 ```
 
 
@@ -23,7 +26,6 @@ MS_test_raw <- read.csv('../data/data_sample/MS_sample/data_test.csv',header = T
 
 ## Reshape Data
 ```{r}
-
 # ms data
 source('../lib/preprocess.R')
 ## load processed data
@@ -42,7 +44,7 @@ movie_test <- dcast_test[,-1]
 ## save file
 savefile = FALSE
 if(savefile == TRUE) save(movie_train,movie_test, file = '../output/movie_wide.RData')
-load(../output/movie_wide.RData)
+load('../output/movie_wide.RData')
 ```
 
 # Step 2: Compute Similarity (weight)
@@ -55,19 +57,15 @@ source('../lib/mat_weight.R')
 # whether run vector similarity and whether save csv file
 run.vec = FALSE
 save.rd = FALSE
-movie_vec_train <- mat_weight(data = movie_train_raw, 
+movie_vec_weight <- mat_weight(data = movie_train_raw, 
                               run.vec = run.vec,
                               run.msd = FALSE)
-movie_vec_test <- mat_weight(data = movie_test_raw, 
-                             run.vec = run.vec,
-                             run.msd = FALSE)
 
 # save output in RData
-if(save.rd == TRUE) save(movie_vec_train, movie_vec_test, file = 'movie_vec.RData')
+if(save.rd == TRUE) save(movie_vec_weight, file = '../output/movie_vec_weight.RData')
 
 # load output data
-load('movie_vec.RData')
-load('movie_vec.RData')
+load('../output/movie_vec_weight.RData')
 ```
 
 ### MS data
@@ -75,19 +73,15 @@ load('movie_vec.RData')
 # whether run vector similarity and whether save csv file
 run.vec = FALSE
 save.rd = FALSE
-ms_vec_train <- mat_weight(data = ms_train, 
+ms_vec_weight <- mat_weight(data = ms_train, 
                            run.vec = run.vec,
                            run.msd = FALSE)
-ms_vec_test <- mat_weight(data = ms_test, 
-                          run.vec = run.vec,
-                          run.msd = FALSE)
+
 # save output in RData
-if(save.rd == TRUE) save(ms_vec_train, ms_vec_test, file = 'ms_vec.RData')
+if(save.rd == TRUE) save(ms_vec_weight, file = '../output/ms_vec_weight.RData')
 
 # load output data
-load('movie_vec.RData')
-load('movie_vec.RData')
-
+load('../output/ms_vec_weight.RData')
 ```
 
 ## Mean Sqaure Difference
@@ -96,88 +90,166 @@ load('movie_vec.RData')
 # whether run vector similarity and whether save csv file
 run.msd = FALSE
 save.rd = FALSE
-movie_msd_train <- mat_weight(data = movie_train_raw, 
-                              run.vec = FALSE,
-                              run.msd = run.msd)
-movie_msd_test <- mat_weight(data = movie_test_raw, 
-                             run.vec = FALSE,
-                             run.msd = run.msd)
+movie_msd_dissimilar <- mat_weight(data = movie_train_raw, 
+                                   run.vec = FALSE,
+                                   run.msd = run.msd)
+# convert dissimilarity to similarity weight
+movie_msd_weight <- (max(movie_msd_dissimilar) - movie_msd_dissimilar ) /
+  ( max(movie_msd_dissimilar) - min(movie_msd_dissimilar) )
 
 # save output in RData
-if(save.rd == TRUE) save(movie_msd_train, movie_msd_test, file = 'movie_vec.RData')
+if(save.rd == TRUE) save(movie_msd_weight, file = '../output/movie_msd_weight.RData')
 
 # load output data
-load('movie_vec.RData')
-load('movie_vec.RData')
+load('../output/movie_msd_weight.RData')
 
 ```
 
 ### MS data
 ```{r}
-run.msd = T
+run.msd = FALSE
 save.rd = FALSE
-ms_msd_train <- mat_weight(data = ms_train, 
-                           run.vec = FALSE,
-                           run.msd = run.msd)
+ms_msd_dissimilar <- mat_weight(data = ms_train, 
+                            run.vec = FALSE,
+                            run.msd = run.msd)
+
+# convert dissimilarity to similarity weight
+ms_msd_weight <- (max(ms_msd_dissimilar) - ms_msd_dissimilar ) /
+  ( max(ms_msd_dissimilar) - min(ms_msd_dissimilar) )
 
 # save output in RData
-if(save.rd == TRUE) save(ms_msd_train, ms_msd_test, file = 'ms_vec.RData')
+if(save.rd == TRUE) save(ms_msd_weight, file = '../output/ms_msd_weight.RData')
 
 # load output data
-load('movie_vec.RData')
-load('movie_vec.RData')
+load('../output/ms_msd_weight.RData')
 ```
 
 ## Simrank (movie)
 Note: simrank method is written in python
 ```{r}
 # read in the simrank weight
-
-# Sace weight in output
+load('../output/movie_simrank_weight.RData')
 ```
 
 # Step 3: Tune parameters for different selecting neighbor methods
+
+load functions
+```{r}
+source('../lib/tuning.R')
+```
+
 ## Weight Threshold
 ```{r}
-
+threshold <- seq(0.1,0.5,by = 0.1)
 ```
 
 ## Best-n-estimators
 ```{r}
-
+bestn <- seq(5, 200, by = 5)
 ```
 
 ## Combine
 ```{r}
-
+threshold <- seq(0.3,0.5,by = 0.1)
+bestn <- seq(16, 30, by = 2)
+par = list(threshold,bestn)
 ```
 
-# Step 4: Prediction & Evaluation
-## MAE
-### MS Data
+## final parameter
 ```{r}
+best.par <- list(n = 60, threshold = 0.6)
+```
+# Step 4: Prediction & Evaluation
 
+## load functions
+```{r}
+source('../lib/predict_score.R')
+```
+
+### MS test Prediction
+```{r}
+# chose which selecting neighbor method to use
+run.bestn = TRUE
+run.threshold = TRUE
+# using vector similarity weight
+pred.ms.vec <- predict.score.ms(ms_train,
+                                ms_test,
+                                ms_vec_weight,
+                                par = best.par,
+                                run.threshold = run.threshold,
+                                run.bestn = run.bestn)
+# using msd weight
+pred.ms.msd <- predict.score.ms(ms_train,
+                                ms_test,
+                                ms_msd_weight,
+                                par = best.par,
+                                run.threshold = run.threshold,
+                                run.bestn = run.bestn)
 ```
 
 ## Movie Data
 ```{r}
+# chose which selecting neighbor method to use
+run.bestn = TRUE
+run.threshold = TRUE
+# using vector similarity weight
+pred.movie.vec <- predict.score.movie(movie_train,
+                                      movie_test,
+                                      movie_vec_weight,
+                                      par = best.par,
+                                      run.threshold = run.threshold,
+                                      run.bestn = run.bestn)
+# using msd similarity weight
+pred.movie.msd <- predict.score.movie(movie_train,
+                                      movie_test,
+                                      movie_msd_weight,
+                                      par = best.par,
+                                      run.threshold = run.threshold,
+                                      run.bestn = run.bestn)
+# using simrank weight
+pred.movie.simrank <- predict.score.movie(movie_train,
+                                          movie_test,
+                                          movie_simrank_weight,
+                                          par = best.par,
+                                          run.threshold = run.threshold,
+                                          run.bestn = run.bestn)
+```
 
+## MAE
+load functions
+```{r}
+load('../lib/mea.R')
+```
+### MAE for MS Data
+```{r}
+mae.ms.vec <- MAE(pred.ms.vec, ms_test)
+mae.ms.vec
+```
+### MAE for Movie Data
+```{r}
+mae.movie.vec <- MAE(pred.movie.vec, movie_test)
+mae.movie.vec
 ```
 
 ## Rank Score
-### MS Data
+load functions
 ```{r}
-
+load('../lib/ranked_scoring.R')
 ```
-
-### Movie Data
+### Rank score MS Data
 ```{r}
-
+rankscore.ms.vec <- rank_matrix(pred.ms.vec, ms_test)
+rankscore.ms.vec
+```
+### Rank score Movie Data
+```{r}
+rankscore.movie.vec <- rank_matrix(pred.movie.vec, movie_test)
+rankscore.movie.vec
 ```
 
 # Step 5: Model-based Algorithm
 ## Clustering (MS Dataset)
-### Tune the cluster model to find best cluster number C
+### Cross Validating the cluster model to find best cluster number C
 ```{r}
 source("../lib/cluster_model.R")
 
@@ -188,7 +260,7 @@ load("../output/ms_test_wide.RData")
 
 list_of_items <- names(train[,-1])
 
-cross.validate.model.clustering <- F
+cross.validate.model.clustering <- FALSE
 if(cross.validate.model.clustering){
   r <- c()
   parameters <- c(4,5,6,7,8)
@@ -209,22 +281,19 @@ if(cross.validate.model.clustering){
   save(t, file = "../output/cv_cluster_rank_score.Rdata")
 }
 
+```
+
+# Step 6: Evaluation for Cluster model
+## Rank Score
+load output rank score
+```{r}
 load("../output/cv_cluster_rank_score.Rdata")
+```
+print output
+```{r}
 print(t)
 best.C <- as.numeric(t[1, which.max(t[2,])])
 best.rank.score <- as.numeric(max(t[2,]))
 print(paste("The best cluster number is:", best.C, ". Rank score is:", best.rank.score))
-
-```
-
-# Step 6: Prediction & Evaluation
-## MAE
-```{r}
-
-```
-
-## Rank Score
-```{r}
-
 ```
 

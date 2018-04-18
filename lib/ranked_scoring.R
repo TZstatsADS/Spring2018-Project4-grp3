@@ -1,6 +1,6 @@
-########ranked scoring#######
-rm(list=ls())
-setwd("~/Documents/GitHub/Spring2018-Project4-group3")
+# ########ranked scoring#######
+# rm(list=ls())
+# setwd("~/Documents/GitHub/Spring2018-Project4-group3")
 
 rank_matrix <- function(pred_matrix, test_matrix){
   # Input: predicted matrix & test set matrix.
