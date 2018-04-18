@@ -17,8 +17,9 @@ predict.score1 <- function(train,
     nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
                            para = list(threshold = threshold,n = n),
                            run.bestn = run.bestn, run.threshold = run.threshold)
-    if (is.na(nei)) {
-          mat[a, ] <- rep(0,ncol(test))
+    if (sum(is.na(nei)) != 0 || length(nei) == 0) {
+      mat[a, ] <- rep(0,ncol(test))
+      next
     }
     ind <- match(nei, rownames(weight))
     w <- weight[a, ind]
