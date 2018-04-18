@@ -9,6 +9,8 @@ predict.score.ms <- function(train,
                              par = list(threshold = 0.3,n = 60),
                              run.threshold = FALSE,
                              run.bestn = FALSE){
+  threshold = par$threshhold
+  n = par$n
   rownames(weight) <- rownames(train)
   train_c <- train - rowMeans(train, na.rm = T)
                 
@@ -44,6 +46,8 @@ predict.score.movie <- function(train, test, weight,
                                 par = list(threshold = 0.3,n = 60),
                                 run.threshold = FALSE,
                                 run.bestn = FALSE){
+  threshold = par$threshold
+  n = par$n
   rownames(weight) <- rownames(train)
   avg <- rowMeans(train, na.rm = T)
   train_c <- train - avg

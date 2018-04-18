@@ -1,18 +1,25 @@
 ---
 title: "Project 4"
 output:
-  pdf_document: default
+  html_document:
+    df_print: paged
   html_notebook: default
+  pdf_document: default
 ---
 # Overview
 In this project, we aim to predict user-item score through collaborative filtering. In the memoery based methods, we adopted 3 similarity metrics (vector similarity, mean square difference and simrank) to calculate weight, in step 2.And then, we used weight threshold and best-n-estimator, or a combination of both to select neighbours. As for evaluation, we implemented mae and ranked scoring. In order to find the suitable threshold and the best n, we tuned those parameters in step 3.  
 \newline
-In step 5 and 6, we implemented and evaluated the performance of a model based method: clustering. 
+
+In step 5 and 6, we implemented the model based method: cluster model. We first implemented the EM algorithm in the training process, and build a test function which involves cluster model prediction and evaluation (rank scoring). And then we tune parameters to choose the best parameter ó number of cluster.
 
 load packages
 ```{r}
+if(!require(reshape2)) install.packages("reshape2") 
+if(!require(ggplot2)) install.packages("ggplot2") 
+if(!require(jpeg)) install.packages("jpeg")
 library(reshape2)
 library(ggplot2)
+library(jpeg)
 ```
 
 
@@ -132,33 +139,81 @@ load('../output/movie_simrank_weight.RData')
 ```
 
 # Step 3: Tune parameters for different selecting neighbor methods
+In this part, we use best n neighbors, threshold methods and a combination of both to select neighbors. However, before we go straight to evaluation, we need to how many neighbors to included for prediction. Thus, we need to tune parameters.  
+
+For best-n-neighbor, n represents the number of neighbors we use for prediction. Starting with small n, initially, MAE would decrease or Ranked Score would increase as n increases, since more neighbors of an user is included. As n increases, more and more information is obtained and used for prediction. Eventually, MAE and Ranked Score with converage.
+
+For threshold method, we only included neighbors has similarity scores that are higher than a certain threshold and the threshold ranges from 0 to 1.  Thus, choosing a good threshold is important. If the threshold is too high, only few or no neighbors will be included. While if the threshold is too low, then many neighbors are included, which could be less inefficient during prediction. Compare to best-n-neighbor, when the threshold is close to 1, less neigbors are selected, thus the MAE would be high, whereas Ranked Score would be low. As threshold decreases, more neighbors are included. So MAE would decrease, while Ranked Score would increase and they would converge.
+
+The performances of different parameters values are shown below.
 
 load functions
 ```{r}
 source('../lib/tuning.R')
 ```
-
-## Weight Threshold
+load our results instead of rerun the codes
 ```{r}
-threshold <- seq(0.1,0.5,by = 0.1)
+run.tune = FALSE
+load('../data/movie_vec_bestn_result.Rdata')
 ```
 
-## Best-n-estimators
-```{r}
-bestn <- seq(5, 200, by = 5)
+## Best-n-estimators and evaluate with rankscore (MS data with msd weight)
+```{r,out.width = '80%'}
+# ms msd
+n <- seq(5,200,by=5)
+if(run.tune) ms_msd_bestn <- tuning_ms(ms_train,ms_test,ms_msd_weight,'bestn')[1:length(n)]
+knitr::include_graphics("../figs/ms_msd_rankscore-n.jpeg")
+```
+
+## Best-n-estimators and evaluate with mae (Movie data with vector weight)
+```{r ,out.width = '80%'}
+# movie vec
+if(run.tune) movie_vec_bestn <- tuning_movie(movie_train,movie_test,movie_vec_weight, 'bestn')[1:length(n)]
+n <- seq(2,30,by=2)
+knitr::include_graphics("../figs/movie_vec_mae_n.jpeg")
+```
+
+
+## Best-n-estimators and evaluate with mae (Movie data with simrank weight)
+```{r,out.width = '80%'}
+# movie simrank best n
+if(run.tune) {
+  movie_simrank_bestn <- tuning_ms(ms_train,ms_test,movie_simrank_weight,'bestn')[1:length(n)]}
+knitr::include_graphics("../figs/movie_simrank_mae-n.jpeg")
+knitr::include_graphics("../figs/movie_simrank_mae-n2.jpeg")
+```
+
+## Threshold and evaluate with rankscore (MS data with msd weight)
+```{r,out.width = '80%'}
+threshold <- seq(0.05,1,by=0.05)
+if(run.tune) ms_msd_threshold <- tuning_ms(ms_train,ms_test,ms_msd_weight, 'threshold')[1:length(threshold)]
+knitr::include_graphics("../figs/ms_msd_rankscore-threshold.jpeg")
+```
+
+## Threshold and evaluate with mae (Movie data with vector weight)
+```{r,out.width = '80%'}
+if(run.tune) movie_vec_threshold <- tuning_movie(movie_train,movie_test,movie_vec_weight,
+                                             'threshold')[1:length(threshold)]
+knitr::include_graphics("../figs/movie_vec_mae-threshold.jpeg")
 ```
 
 ## Combine
 ```{r}
-threshold <- seq(0.3,0.5,by = 0.1)
-bestn <- seq(16, 30, by = 2)
-par = list(threshold,bestn)
+threshold <- seq(0.05,1,by=0.05)
+n <- seq(5,200,by=5)
+par = list(threshold,bestn = n)
+if(run.tune){
+  ms_msd_threshold <- tuning_ms(ms_train,ms_test,ms_msd_weight, 'combined')[1:length(threshold)]
+}
+
 ```
 
 ## final parameter
 ```{r}
 best.par <- list(n = 60, threshold = 0.6)
 ```
+
+
 # Step 4: Prediction & Evaluation
 
 ## load functions
@@ -248,7 +303,11 @@ if(run.rankscore){
 }
 ```
 
-##
+
+## Result
+Using msd as weight yields the best result, with ranked score of 47.5.
+Similarly, for movie data, msd also gives the best result, with the smallest MAE 0.96.
+
 # Step 5: Model-based Algorithm
 ## Clustering (MS Dataset)
 ### Cross Validating the cluster model to find best cluster number C
@@ -299,3 +358,4 @@ best.rank.score <- as.numeric(max(t[2,]))
 print(paste("The best cluster number is:", best.C, ". Rank score is:", best.rank.score))
 ```
 
+Based on the validation result, we chose our the best parameter (number of cluster) to be 4. And the resulting evaluation from the testing set has rank score of 41.32. 

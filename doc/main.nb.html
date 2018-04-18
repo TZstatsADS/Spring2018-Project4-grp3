@@ -1699,12 +1699,18 @@ $(document).ready(function () {
 <div id="overview" class="section level1">
 <h1>Overview</h1>
 <p>In this project, we aim to predict user-item score through collaborative filtering. In the memoery based methods, we adopted 3 similarity metrics (vector similarity, mean square difference and simrank) to calculate weight, in step 2.And then, we used weight threshold and best-n-estimator, or a combination of both to select neighbours. As for evaluation, we implemented mae and ranked scoring. In order to find the suitable threshold and the best n, we tuned those parameters in step 3.<br />
- In step 5 and 6, we implemented and evaluated the performance of a model based method: clustering.</p>
+</p>
+<p>In step 5 and 6, we implemented the model based method: cluster model. We first implemented the EM algorithm in the training process, and build a test function which involves cluster model prediction and evaluation (rank scoring). And then we tune parameters to choose the best parameter ó number of cluster.</p>
 <p>load packages</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZXNoYXBlMilcbmBgYCJ9 -->
-<pre class="r"><code>library(reshape2)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWYoIXJlcXVpcmUocmVzaGFwZTIpKSBpbnN0YWxsLnBhY2thZ2VzKFwicmVzaGFwZTJcIikgXG5pZighcmVxdWlyZShnZ3Bsb3QyKSkgaW5zdGFsbC5wYWNrYWdlcyhcImdncGxvdDJcIikgXG5pZighcmVxdWlyZShqcGVnKSkgaW5zdGFsbC5wYWNrYWdlcyhcImpwZWdcIilcbmxpYnJhcnkocmVzaGFwZTIpXG5saWJyYXJ5KGdncGxvdDIpXG5saWJyYXJ5KGpwZWcpXG5gYGAifQ== -->
+<pre class="r"><code>if(!require(reshape2)) install.packages(&quot;reshape2&quot;) 
+if(!require(ggplot2)) install.packages(&quot;ggplot2&quot;) 
+if(!require(jpeg)) install.packages(&quot;jpeg&quot;)
+library(reshape2)
+library(ggplot2)
+library(jpeg)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -1713,51 +1719,39 @@ $(document).ready(function () {
 <h1>Step 1: Load Data</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubW92aWVfdHJhaW5fcmF3IDwtIHJlYWQuY3N2KCcuLi9kYXRhL2RhdGFfc2FtcGxlL2VhY2htb3ZpZV9zYW1wbGUvZGF0YV90cmFpbi5jc3YnLGhlYWRlciA9IFQpXG5tb3ZpZV90ZXN0X3JhdyA8LSByZWFkLmNzdignLi4vZGF0YS9kYXRhX3NhbXBsZS9lYWNobW92aWVfc2FtcGxlL2RhdGFfdGVzdC5jc3YnLGhlYWRlciA9IFQpXG5NU190cmFpbl9yYXcgPC0gcmVhZC5jc3YoJy4uL2RhdGEvZGF0YV9zYW1wbGUvTVNfc2FtcGxlL2RhdGFfdHJhaW4uY3N2JyxoZWFkZXIgPSBUKVxuTVNfdGVzdF9yYXcgPC0gcmVhZC5jc3YoJy4uL2RhdGEvZGF0YV9zYW1wbGUvTVNfc2FtcGxlL2RhdGFfdGVzdC5jc3YnLGhlYWRlciA9IFQpXG5gYGAifQ== -->
+<pre class="r"><code>movie_train_raw &lt;- read.csv('../data/data_sample/eachmovie_sample/data_train.csv',header = T)
+movie_test_raw &lt;- read.csv('../data/data_sample/eachmovie_sample/data_test.csv',header = T)
+MS_train_raw &lt;- read.csv('../data/data_sample/MS_sample/data_train.csv',header = T)
+MS_test_raw &lt;- read.csv('../data/data_sample/MS_sample/data_test.csv',header = T)</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="reshape-data" class="section level2">
 <h2>Reshape Data</h2>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBtcyBkYXRhXG5zb3VyY2UoJy4uL2xpYi9wcmVwcm9jZXNzLlInKVxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBtcyBkYXRhXG5zb3VyY2UoJy4uL2xpYi9wcmVwcm9jZXNzLlInKVxuIyMgbG9hZCBwcm9jZXNzZWQgZGF0YVxubG9hZCgnLi4vb3V0cHV0L21zX3RyYWluLlJEYXRhJylcbmxvYWQoJy4uL291dHB1dC9tc190ZXN0LlJEYXRhJylcblxuIyBtb3ZpZSBkYXRhXG4jIyB0cmFpblxuZGNhc3RfdHJhaW4gPC0gZGNhc3QobW92aWVfdHJhaW5fcmF3LCBVc2Vyfk1vdmllKVxucm93bmFtZXMoZGNhc3RfdHJhaW4pIDwtIGRjYXN0X3RyYWluJFVzZXJcbm1vdmllX3RyYWluIDwtIGRjYXN0X3RyYWluWywtMV1cbiMjIHRlc3RcbmRjYXN0X3Rlc3QgPC0gZGNhc3QobW92aWVfdGVzdF9yYXcsIFVzZXJ+TW92aWUpXG5yb3duYW1lcyhkY2FzdF90ZXN0KSA8LSBkY2FzdF90ZXN0JFVzZXJcbm1vdmllX3Rlc3QgPC0gZGNhc3RfdGVzdFssLTFdXG4jIyBzYXZlIGZpbGVcbnNhdmVmaWxlID0gRkFMU0VcbmlmKHNhdmVmaWxlID09IFRSVUUpIHNhdmUobW92aWVfdHJhaW4sbW92aWVfdGVzdCwgZmlsZSA9ICcuLi9vdXRwdXQvbW92aWVfd2lkZS5SRGF0YScpXG5sb2FkKCcuLi9vdXRwdXQvbW92aWVfd2lkZS5SRGF0YScpXG5gYGAifQ== -->
 <pre class="r"><code># ms data
-source('../lib/preprocess.R')</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiVXNpbmcgQyBhcyB2YWx1ZSBjb2x1bW46IHVzZSB2YWx1ZS52YXIgdG8gb3ZlcnJpZGUuXG5Vc2luZyBDIGFzIHZhbHVlIGNvbHVtbjogdXNlIHZhbHVlLnZhciB0byBvdmVycmlkZS5cbiJ9 -->
-<pre><code>Using C as value column: use value.var to override.
-Using C as value column: use value.var to override.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyMgbG9hZCBwcm9jZXNzZWQgZGF0YVxubG9hZCgnLi4vb3V0cHV0L21zX3RyYWluLlJEYXRhJylcbmxvYWQoJy4uL291dHB1dC9tc190ZXN0LlJEYXRhJylcbiMgbW92aWUgZGF0YVxuIyMgdHJhaW5cbmRjYXN0X3RyYWluIDwtIGRjYXN0KG1vdmllX3RyYWluX3JhdywgVXNlcn5Nb3ZpZSlcbmBgYCJ9 -->
-<pre class="r"><code>## load processed data
+source('../lib/preprocess.R')
+## load processed data
 load('../output/ms_train.RData')
 load('../output/ms_test.RData')
+
 # movie data
 ## train
-dcast_train &lt;- dcast(movie_train_raw, User~Movie)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiVXNpbmcgU2NvcmUgYXMgdmFsdWUgY29sdW1uOiB1c2UgdmFsdWUudmFyIHRvIG92ZXJyaWRlLlxuIn0= -->
-<pre><code>Using Score as value column: use value.var to override.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm93bmFtZXMoZGNhc3RfdHJhaW4pIDwtIGRjYXN0X3RyYWluJFVzZXJcbm1vdmllX3RyYWluIDwtIGRjYXN0X3RyYWluWywtMV1cbiMjIHRlc3RcbmRjYXN0X3Rlc3QgPC0gZGNhc3QobW92aWVfdGVzdF9yYXcsIFVzZXJ+TW92aWUpXG5gYGAifQ== -->
-<pre class="r"><code>rownames(dcast_train) &lt;- dcast_train$User
+dcast_train &lt;- dcast(movie_train_raw, User~Movie)
+rownames(dcast_train) &lt;- dcast_train$User
 movie_train &lt;- dcast_train[,-1]
 ## test
-dcast_test &lt;- dcast(movie_test_raw, User~Movie)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiVXNpbmcgU2NvcmUgYXMgdmFsdWUgY29sdW1uOiB1c2UgdmFsdWUudmFyIHRvIG92ZXJyaWRlLlxuIn0= -->
-<pre><code>Using Score as value column: use value.var to override.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm93bmFtZXMoZGNhc3RfdGVzdCkgPC0gZGNhc3RfdGVzdCRVc2VyXG5tb3ZpZV90ZXN0IDwtIGRjYXN0X3Rlc3RbLC0xXVxuIyMgc2F2ZSBmaWxlXG5zYXZlZmlsZSA9IEZBTFNFXG5pZihzYXZlZmlsZSA9PSBUUlVFKSBzYXZlKG1vdmllX3RyYWluLG1vdmllX3Rlc3QsIGZpbGUgPSAnLi4vb3V0cHV0L21vdmllX3dpZGUuUkRhdGEnKVxubG9hZCgnLi4vb3V0cHV0L21vdmllX3dpZGUuUkRhdGEnKVxuYGBgIn0= -->
-<pre class="r"><code>rownames(dcast_test) &lt;- dcast_test$User
+dcast_test &lt;- dcast(movie_test_raw, User~Movie)
+rownames(dcast_test) &lt;- dcast_test$User
 movie_test &lt;- dcast_test[,-1]
 ## save file
 savefile = FALSE
 if(savefile == TRUE) save(movie_train,movie_test, file = '../output/movie_wide.RData')
 load('../output/movie_wide.RData')</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiY2Fubm90IG9wZW4gY29tcHJlc3NlZCBmaWxlICcuLi9vdXRwdXQvbW92aWVfd2lkZS5SRGF0YScsIHByb2JhYmxlIHJlYXNvbiAnTm8gc3VjaCBmaWxlIG9yIGRpcmVjdG9yeSdFcnJvciBpbiByZWFkQ2hhcihjb24sIDVMLCB1c2VCeXRlcyA9IFRSVUUpIDogY2Fubm90IG9wZW4gdGhlIGNvbm5lY3Rpb25cbiJ9 -->
-<pre><code>cannot open compressed file '../output/movie_wide.RData', probable reason 'No such file or directory'Error in readChar(con, 5L, useBytes = TRUE) : cannot open the connection</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -1770,6 +1764,23 @@ load('../output/movie_wide.RData')</code></pre>
 <h3>Movie data</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBsb2FkIHZlY3RvciBzaW1pbGFyaXR5IGZ1bmN0aW9uXG5zb3VyY2UoJy4uL2xpYi9tYXRfd2VpZ2h0LlInKVxuXG4jIHdoZXRoZXIgcnVuIHZlY3RvciBzaW1pbGFyaXR5IGFuZCB3aGV0aGVyIHNhdmUgY3N2IGZpbGVcbnJ1bi52ZWMgPSBGQUxTRVxuc2F2ZS5yZCA9IEZBTFNFXG5tb3ZpZV92ZWNfd2VpZ2h0IDwtIG1hdF93ZWlnaHQoZGF0YSA9IG1vdmllX3RyYWluX3JhdywgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udmVjID0gcnVuLnZlYyxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5tc2QgPSBGQUxTRSlcblxuIyBzYXZlIG91dHB1dCBpbiBSRGF0YVxuaWYoc2F2ZS5yZCA9PSBUUlVFKSBzYXZlKG1vdmllX3ZlY193ZWlnaHQsIGZpbGUgPSAnLi4vb3V0cHV0L21vdmllX3ZlY193ZWlnaHQuUkRhdGEnKVxuXG4jIGxvYWQgb3V0cHV0IGRhdGFcbmxvYWQoJy4uL291dHB1dC9tb3ZpZV92ZWNfd2VpZ2h0LlJEYXRhJylcbmBgYCJ9 -->
+<pre class="r"><code># load vector similarity function
+source('../lib/mat_weight.R')
+
+# whether run vector similarity and whether save csv file
+run.vec = FALSE
+save.rd = FALSE
+movie_vec_weight &lt;- mat_weight(data = movie_train_raw, 
+                              run.vec = run.vec,
+                              run.msd = FALSE)
+
+# save output in RData
+if(save.rd == TRUE) save(movie_vec_weight, file = '../output/movie_vec_weight.RData')
+
+# load output data
+load('../output/movie_vec_weight.RData')</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -1801,6 +1812,24 @@ load('../output/ms_vec_weight.RData')</code></pre>
 <h3>Movie data</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyB3aGV0aGVyIHJ1biB2ZWN0b3Igc2ltaWxhcml0eSBhbmQgd2hldGhlciBzYXZlIGNzdiBmaWxlXG5ydW4ubXNkID0gRkFMU0VcbnNhdmUucmQgPSBGQUxTRVxubW92aWVfbXNkX2Rpc3NpbWlsYXIgPC0gbWF0X3dlaWdodChkYXRhID0gbW92aWVfdHJhaW5fcmF3LCBcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnZlYyA9IEZBTFNFLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4ubXNkID0gcnVuLm1zZClcbiMgY29udmVydCBkaXNzaW1pbGFyaXR5IHRvIHNpbWlsYXJpdHkgd2VpZ2h0XG5tb3ZpZV9tc2Rfd2VpZ2h0IDwtIChtYXgobW92aWVfbXNkX2Rpc3NpbWlsYXIpIC0gbW92aWVfbXNkX2Rpc3NpbWlsYXIgKSAvXG4gICggbWF4KG1vdmllX21zZF9kaXNzaW1pbGFyKSAtIG1pbihtb3ZpZV9tc2RfZGlzc2ltaWxhcikgKVxuXG4jIHNhdmUgb3V0cHV0IGluIFJEYXRhXG5pZihzYXZlLnJkID09IFRSVUUpIHNhdmUobW92aWVfbXNkX3dlaWdodCwgZmlsZSA9ICcuLi9vdXRwdXQvbW92aWVfbXNkX3dlaWdodC5SRGF0YScpXG5cbiMgbG9hZCBvdXRwdXQgZGF0YVxubG9hZCgnLi4vb3V0cHV0L21vdmllX21zZF93ZWlnaHQuUkRhdGEnKVxuXG5gYGAifQ== -->
+<pre class="r"><code># whether run vector similarity and whether save csv file
+run.msd = FALSE
+save.rd = FALSE
+movie_msd_dissimilar &lt;- mat_weight(data = movie_train_raw, 
+                                   run.vec = FALSE,
+                                   run.msd = run.msd)
+# convert dissimilarity to similarity weight
+movie_msd_weight &lt;- (max(movie_msd_dissimilar) - movie_msd_dissimilar ) /
+  ( max(movie_msd_dissimilar) - min(movie_msd_dissimilar) )
+
+# save output in RData
+if(save.rd == TRUE) save(movie_msd_weight, file = '../output/movie_msd_weight.RData')
+
+# load output data
+load('../output/movie_msd_weight.RData')
+</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -1808,6 +1837,23 @@ load('../output/ms_vec_weight.RData')</code></pre>
 <h3>MS data</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucnVuLm1zZCA9IEZBTFNFXG5zYXZlLnJkID0gRkFMU0Vcbm1zX21zZF9kaXNzaW1pbGFyIDwtIG1hdF93ZWlnaHQoZGF0YSA9IG1zX3RyYWluLCBcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udmVjID0gRkFMU0UsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLm1zZCA9IHJ1bi5tc2QpXG5cbiMgY29udmVydCBkaXNzaW1pbGFyaXR5IHRvIHNpbWlsYXJpdHkgd2VpZ2h0XG5tc19tc2Rfd2VpZ2h0IDwtIChtYXgobXNfbXNkX2Rpc3NpbWlsYXIpIC0gbXNfbXNkX2Rpc3NpbWlsYXIgKSAvXG4gICggbWF4KG1zX21zZF9kaXNzaW1pbGFyKSAtIG1pbihtc19tc2RfZGlzc2ltaWxhcikgKVxuXG4jIHNhdmUgb3V0cHV0IGluIFJEYXRhXG5pZihzYXZlLnJkID09IFRSVUUpIHNhdmUobXNfbXNkX3dlaWdodCwgZmlsZSA9ICcuLi9vdXRwdXQvbXNfbXNkX3dlaWdodC5SRGF0YScpXG5cbiMgbG9hZCBvdXRwdXQgZGF0YVxubG9hZCgnLi4vb3V0cHV0L21zX21zZF93ZWlnaHQuUkRhdGEnKVxuYGBgIn0= -->
+<pre class="r"><code>run.msd = FALSE
+save.rd = FALSE
+ms_msd_dissimilar &lt;- mat_weight(data = ms_train, 
+                            run.vec = FALSE,
+                            run.msd = run.msd)
+
+# convert dissimilarity to similarity weight
+ms_msd_weight &lt;- (max(ms_msd_dissimilar) - ms_msd_dissimilar ) /
+  ( max(ms_msd_dissimilar) - min(ms_msd_dissimilar) )
+
+# save output in RData
+if(save.rd == TRUE) save(ms_msd_weight, file = '../output/ms_msd_weight.RData')
+
+# load output data
+load('../output/ms_msd_weight.RData')</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -1827,6 +1873,10 @@ load('../output/movie_simrank_weight.RData')</code></pre>
 </div>
 <div id="step-3-tune-parameters-for-different-selecting-neighbor-methods" class="section level1">
 <h1>Step 3: Tune parameters for different selecting neighbor methods</h1>
+<p>In this part, we use best n neighbors, threshold methods and a combination of both to select neighbors. However, before we go straight to evaluation, we need to how many neighbors to included for prediction. Thus, we need to tune parameters.</p>
+<p>For best-n-neighbor, n represents the number of neighbors we use for prediction. Starting with small n, initially, MAE would decrease or Ranked Score would increase as n increases, since more neighbors of an user is included. As n increases, more and more information is obtained and used for prediction. Eventually, MAE and Ranked Score with converage.</p>
+<p>For threshold method, we only included neighbors has similarity scores that are higher than a certain threshold and the threshold ranges from 0 to 1. Thus, choosing a good threshold is important. If the threshold is too high, only few or no neighbors will be included. While if the threshold is too low, then many neighbors are included, which could be less inefficient during prediction. Compare to best-n-neighbor, when the threshold is close to 1, less neigbors are selected, thus the MAE would be high, whereas Ranked Score would be low. As threshold decreases, more neighbors are included. So MAE would decrease, while Ranked Score would increase and they would converge.</p>
+<p>The performances of different parameters values are shown below.</p>
 <p>load functions</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
@@ -1835,22 +1885,75 @@ load('../output/movie_simrank_weight.RData')</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<div id="weight-threshold" class="section level2">
-<h2>Weight Threshold</h2>
+<p>load our results instead of rerun the codes</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhyZXNob2xkIDwtIHNlcSgwLjEsMC41LGJ5ID0gMC4xKVxuYGBgIn0= -->
-<pre class="r"><code>threshold &lt;- seq(0.1,0.5,by = 0.1)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucnVuLnR1bmUgPSBGQUxTRVxubG9hZCgnLi4vZGF0YS9tb3ZpZV92ZWNfYmVzdG5fcmVzdWx0LlJkYXRhJylcbmBgYCJ9 -->
+<pre class="r"><code>run.tune = FALSE
+load('../data/movie_vec_bestn_result.Rdata')</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<div id="best-n-estimators-and-evaluate-with-rankscore-ms-data-with-msd-weight" class="section level2">
+<h2>Best-n-estimators and evaluate with rankscore (MS data with msd weight)</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBtcyBtc2Rcbm4gPC0gc2VxKDUsMjAwLGJ5PTUpXG5pZihydW4udHVuZSkgbXNfbXNkX2Jlc3RuIDwtIHR1bmluZ19tcyhtc190cmFpbixtc190ZXN0LG1zX21zZF93ZWlnaHQsJ2Jlc3RuJylbMTpsZW5ndGgobildXG5rbml0cjo6aW5jbHVkZV9ncmFwaGljcyhcIi4uL2ZpZ3MvbXNfbXNkX3JhbmtzY29yZS1uLmpwZWdcIilcbmBgYCJ9 -->
+<pre class="r"><code># ms msd
+n &lt;- seq(5,200,by=5)
+if(run.tune) ms_msd_bestn &lt;- tuning_ms(ms_train,ms_test,ms_msd_weight,'bestn')[1:length(n)]
+knitr::include_graphics(&quot;../figs/ms_msd_rankscore-n.jpeg&quot;)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
-<div id="best-n-estimators" class="section level2">
-<h2>Best-n-estimators</h2>
+<div id="best-n-estimators-and-evaluate-with-mae-movie-data-with-vector-weight" class="section level2">
+<h2>Best-n-estimators and evaluate with mae (Movie data with vector weight)</h2>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYmVzdG4gPC0gc2VxKDUsIDIwMCwgYnkgPSA1KVxuYGBgIn0= -->
-<pre class="r"><code>bestn &lt;- seq(5, 200, by = 5)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBtb3ZpZSB2ZWNcbmlmKHJ1bi50dW5lKSBtb3ZpZV92ZWNfYmVzdG4gPC0gdHVuaW5nX21vdmllKG1vdmllX3RyYWluLG1vdmllX3Rlc3QsbW92aWVfdmVjX3dlaWdodCwgJ2Jlc3RuJylbMTpsZW5ndGgobildXG5uIDwtIHNlcSgyLDMwLGJ5PTIpXG5rbml0cjo6aW5jbHVkZV9ncmFwaGljcyhcIi4uL2ZpZ3MvbW92aWVfdmVjX21hZV9uLmpwZWdcIilcbmBgYCJ9 -->
+<pre class="r"><code># movie vec
+if(run.tune) movie_vec_bestn &lt;- tuning_movie(movie_train,movie_test,movie_vec_weight, 'bestn')[1:length(n)]
+n &lt;- seq(2,30,by=2)
+knitr::include_graphics(&quot;../figs/movie_vec_mae_n.jpeg&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="best-n-estimators-and-evaluate-with-mae-movie-data-with-simrank-weight" class="section level2">
+<h2>Best-n-estimators and evaluate with mae (Movie data with simrank weight)</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBtb3ZpZSBzaW1yYW5rIGJlc3QgblxuaWYocnVuLnR1bmUpIHtcbiAgbW92aWVfc2ltcmFua19iZXN0biA8LSB0dW5pbmdfbXMobXNfdHJhaW4sbXNfdGVzdCxtb3ZpZV9zaW1yYW5rX3dlaWdodCwnYmVzdG4nKVsxOmxlbmd0aChuKV19XG5rbml0cjo6aW5jbHVkZV9ncmFwaGljcyhcIi4uL2ZpZ3MvbW92aWVfc2ltcmFua19tYWUtbi5qcGVnXCIpXG5rbml0cjo6aW5jbHVkZV9ncmFwaGljcyhcIi4uL2ZpZ3MvbW92aWVfc2ltcmFua19tYWUtbjIuanBlZ1wiKVxuYGBgIn0= -->
+<pre class="r"><code># movie simrank best n
+if(run.tune) {
+  movie_simrank_bestn &lt;- tuning_ms(ms_train,ms_test,movie_simrank_weight,'bestn')[1:length(n)]}
+knitr::include_graphics(&quot;../figs/movie_simrank_mae-n.jpeg&quot;)
+knitr::include_graphics(&quot;../figs/movie_simrank_mae-n2.jpeg&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="threshold-and-evaluate-with-rankscore-ms-data-with-msd-weight" class="section level2">
+<h2>Threshold and evaluate with rankscore (MS data with msd weight)</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhyZXNob2xkIDwtIHNlcSgwLjA1LDEsYnk9MC4wNSlcbmlmKHJ1bi50dW5lKSBtc19tc2RfdGhyZXNob2xkIDwtIHR1bmluZ19tcyhtc190cmFpbixtc190ZXN0LG1zX21zZF93ZWlnaHQsICd0aHJlc2hvbGQnKVsxOmxlbmd0aCh0aHJlc2hvbGQpXVxua25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoXCIuLi9maWdzL21zX21zZF9yYW5rc2NvcmUtdGhyZXNob2xkLmpwZWdcIilcbmBgYCJ9 -->
+<pre class="r"><code>threshold &lt;- seq(0.05,1,by=0.05)
+if(run.tune) ms_msd_threshold &lt;- tuning_ms(ms_train,ms_test,ms_msd_weight, 'threshold')[1:length(threshold)]
+knitr::include_graphics(&quot;../figs/ms_msd_rankscore-threshold.jpeg&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="threshold-and-evaluate-with-mae-movie-data-with-vector-weight" class="section level2">
+<h2>Threshold and evaluate with mae (Movie data with vector weight)</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWYocnVuLnR1bmUpIG1vdmllX3ZlY190aHJlc2hvbGQgPC0gdHVuaW5nX21vdmllKG1vdmllX3RyYWluLG1vdmllX3Rlc3QsbW92aWVfdmVjX3dlaWdodCxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICd0aHJlc2hvbGQnKVsxOmxlbmd0aCh0aHJlc2hvbGQpXVxua25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoXCIuLi9maWdzL21vdmllX3ZlY19tYWUtdGhyZXNob2xkLmpwZWdcIilcbmBgYCJ9 -->
+<pre class="r"><code>if(run.tune) movie_vec_threshold &lt;- tuning_movie(movie_train,movie_test,movie_vec_weight,
+                                             'threshold')[1:length(threshold)]
+knitr::include_graphics(&quot;../figs/movie_vec_mae-threshold.jpeg&quot;)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -1859,10 +1962,14 @@ load('../output/movie_simrank_weight.RData')</code></pre>
 <h2>Combine</h2>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhyZXNob2xkIDwtIHNlcSgwLjMsMC41LGJ5ID0gMC4xKVxuYmVzdG4gPC0gc2VxKDE2LCAzMCwgYnkgPSAyKVxucGFyID0gbGlzdCh0aHJlc2hvbGQsYmVzdG4pXG5gYGAifQ== -->
-<pre class="r"><code>threshold &lt;- seq(0.3,0.5,by = 0.1)
-bestn &lt;- seq(16, 30, by = 2)
-par = list(threshold,bestn)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGhyZXNob2xkIDwtIHNlcSgwLjA1LDEsYnk9MC4wNSlcbm4gPC0gc2VxKDUsMjAwLGJ5PTUpXG5wYXIgPSBsaXN0KHRocmVzaG9sZCxiZXN0biA9IG4pXG5pZihydW4udHVuZSl7XG4gIG1zX21zZF90aHJlc2hvbGQgPC0gdHVuaW5nX21zKG1zX3RyYWluLG1zX3Rlc3QsbXNfbXNkX3dlaWdodCwgJ2NvbWJpbmVkJylbMTpsZW5ndGgodGhyZXNob2xkKV1cbn1cblxuYGBgIn0= -->
+<pre class="r"><code>threshold &lt;- seq(0.05,1,by=0.05)
+n &lt;- seq(5,200,by=5)
+par = list(threshold,bestn = n)
+if(run.tune){
+  ms_msd_threshold &lt;- tuning_ms(ms_train,ms_test,ms_msd_weight, 'combined')[1:length(threshold)]
+}
+</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -1893,22 +2000,26 @@ par = list(threshold,bestn)</code></pre>
 <h3>MS test Prediction</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBjaG9zZSB3aGljaCBzZWxlY3RpbmcgbmVpZ2hib3IgbWV0aG9kIHRvIHVzZVxucnVuLmJlc3RuID0gVFJVRVxucnVuLnRocmVzaG9sZCA9IFRSVUVcbiMgdXNpbmcgdmVjdG9yIHNpbWlsYXJpdHkgd2VpZ2h0XG5wcmVkLm1zLnZlYyA8LSBwcmVkaWN0LnNjb3JlLm1zKG1zX3RyYWluLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtc190ZXN0LFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtc192ZWNfd2VpZ2h0LFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYXIgPSBiZXN0LnBhcixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnRocmVzaG9sZCA9IHJ1bi50aHJlc2hvbGQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bilcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBjaG9zZSB3aGljaCBzZWxlY3RpbmcgbmVpZ2hib3IgbWV0aG9kIHRvIHVzZVxucnVuLmJlc3RuID0gVFJVRVxucnVuLnRocmVzaG9sZCA9IFRSVUVcbnJ1bi5wcmVkID0gRkFMU0VcbmlmKHJ1bi5wcmVkKXtcbiAgIyB1c2luZyB2ZWN0b3Igc2ltaWxhcml0eSB3ZWlnaHRcbiAgcHJlZC5tcy52ZWMgPC0gcHJlZGljdC5zY29yZS5tcyhtc190cmFpbixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtc190ZXN0LFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX3ZlY193ZWlnaHQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnRocmVzaG9sZCA9IHJ1bi50aHJlc2hvbGQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLmJlc3RuID0gcnVuLmJlc3RuKVxuICAjIHVzaW5nIG1zZCB3ZWlnaHRcbiAgcHJlZC5tcy5tc2QgPC0gcHJlZGljdC5zY29yZS5tcyhtc190cmFpbixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtc190ZXN0LFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX21zZF93ZWlnaHQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnRocmVzaG9sZCA9IHJ1bi50aHJlc2hvbGQsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLmJlc3RuID0gcnVuLmJlc3RuKVxufVxuYGBgIn0= -->
 <pre class="r"><code># chose which selecting neighbor method to use
 run.bestn = TRUE
 run.threshold = TRUE
-# using vector similarity weight
-pred.ms.vec &lt;- predict.score.ms(ms_train,
-                                ms_test,
-                                ms_vec_weight,
-                                par = best.par,
-                                run.threshold = run.threshold,
-                                run.bestn = run.bestn)</code></pre>
+run.pred = FALSE
+if(run.pred){
+  # using vector similarity weight
+  pred.ms.vec &lt;- predict.score.ms(ms_train,
+                                  ms_test,
+                                  ms_vec_weight,
+                                  run.threshold = run.threshold,
+                                  run.bestn = run.bestn)
+  # using msd weight
+  pred.ms.msd &lt;- predict.score.ms(ms_train,
+                                  ms_test,
+                                  ms_msd_weight,
+                                  run.threshold = run.threshold,
+                                  run.bestn = run.bestn)
+}</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gc2VsZWN0X25laWdoYm9yKHVzZXJpZCA9IHJvd25hbWVzKHRlc3QpW2FdLCB3ZWlnaHRfbWF0ID0gd2VpZ2h0LCAgOiBcbiAgb2JqZWN0ICd0aHJlc2hvbGQnIG5vdCBmb3VuZFxuIn0= -->
-<pre><code>Error in select_neighbor(userid = rownames(test)[a], weight_mat = weight,  : 
-  object 'threshold' not found</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -1954,14 +2065,9 @@ if(run.pred){
 <p>load functions</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubG9hZCgnLi4vbGliL21hZS5SJylcbmBgYCJ9 -->
-<pre class="r"><code>load('../lib/mae.R')</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc291cmNlKCcuLi9saWIvbWFlLlInKVxuYGBgIn0= -->
+<pre class="r"><code>source('../lib/mae.R')</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiZmlsZSDigJhtYWUuUuKAmSBoYXMgbWFnaWMgbnVtYmVyICcjIyMjIydcbiAgVXNlIG9mIHNhdmUgdmVyc2lvbnMgcHJpb3IgdG8gMiBpcyBkZXByZWNhdGVkRXJyb3IgaW4gbG9hZChcIi4uL2xpYi9tYWUuUlwiKSA6IFxuICBiYWQgcmVzdG9yZSBmaWxlIG1hZ2ljIG51bWJlciAoZmlsZSBtYXkgYmUgY29ycnVwdGVkKSAtLSBubyBkYXRhIGxvYWRlZFxuIn0= -->
-<pre><code>file ‘mae.R’ has magic number '#####'
-  Use of save versions prior to 2 is deprecatedError in load(&quot;../lib/mae.R&quot;) : 
-  bad restore file magic number (file may be corrupted) -- no data loaded</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="mae-for-movie-data" class="section level3">
@@ -1984,14 +2090,9 @@ if(run.MAE){
 <p>load functions</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubG9hZCgnLi4vbGliL3JhbmtlZF9zY29yaW5nLlInKVxuYGBgIn0= -->
-<pre class="r"><code>load('../lib/ranked_scoring.R')</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc291cmNlKCcuLi9saWIvcmFua2VkX3Njb3JpbmcuUicpXG5gYGAifQ== -->
+<pre class="r"><code>source('../lib/ranked_scoring.R')</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiZmlsZSDigJhyYW5rZWRfc2NvcmluZy5S4oCZIGhhcyBtYWdpYyBudW1iZXIgJyMgIyMjJ1xuICBVc2Ugb2Ygc2F2ZSB2ZXJzaW9ucyBwcmlvciB0byAyIGlzIGRlcHJlY2F0ZWRFcnJvciBpbiBsb2FkKFwiLi4vbGliL3JhbmtlZF9zY29yaW5nLlJcIikgOiBcbiAgYmFkIHJlc3RvcmUgZmlsZSBtYWdpYyBudW1iZXIgKGZpbGUgbWF5IGJlIGNvcnJ1cHRlZCkgLS0gbm8gZGF0YSBsb2FkZWRcbiJ9 -->
-<pre><code>file ‘ranked_scoring.R’ has magic number '# ###'
-  Use of save versions prior to 2 is deprecatedError in load(&quot;../lib/ranked_scoring.R&quot;) : 
-  bad restore file magic number (file may be corrupted) -- no data loaded</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="rank-score-ms-data" class="section level3">
@@ -2009,8 +2110,9 @@ if(run.rankscore){
 <!-- rnb-text-begin -->
 </div>
 </div>
-<div id="section" class="section level2">
-<h2></h2>
+<div id="result" class="section level2">
+<h2>Result</h2>
+<p>Using msd as weight yields the best result, with ranked score of 47.5. Similarly, for movie data, msd also gives the best result, with the smallest MAE 0.96.</p>
 </div>
 </div>
 <div id="step-5-model-based-algorithm" class="section level1">
@@ -2081,11 +2183,12 @@ print(paste(&quot;The best cluster number is:&quot;, best.C, &quot;. Rank score 
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
+<p>Based on the validation result, we chose our the best parameter (number of cluster) to be 4. And the resulting evaluation from the testing set has rank score of 41.32.</p>
 <!-- rnb-text-end -->
 </div>
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUHJvamVjdCA0IgpvdXRwdXQ6CiAgcGRmX2RvY3VtZW50OiBkZWZhdWx0CiAgaHRtbF9ub3RlYm9vazogZGVmYXVsdAotLS0KIyBPdmVydmlldwpJbiB0aGlzIHByb2plY3QsIHdlIGFpbSB0byBwcmVkaWN0IHVzZXItaXRlbSBzY29yZSB0aHJvdWdoIGNvbGxhYm9yYXRpdmUgZmlsdGVyaW5nLiBJbiB0aGUgbWVtb2VyeSBiYXNlZCBtZXRob2RzLCB3ZSBhZG9wdGVkIDMgc2ltaWxhcml0eSBtZXRyaWNzICh2ZWN0b3Igc2ltaWxhcml0eSwgbWVhbiBzcXVhcmUgZGlmZmVyZW5jZSBhbmQgc2ltcmFuaykgdG8gY2FsY3VsYXRlIHdlaWdodCwgaW4gc3RlcCAyLkFuZCB0aGVuLCB3ZSB1c2VkIHdlaWdodCB0aHJlc2hvbGQgYW5kIGJlc3Qtbi1lc3RpbWF0b3IsIG9yIGEgY29tYmluYXRpb24gb2YgYm90aCB0byBzZWxlY3QgbmVpZ2hib3Vycy4gQXMgZm9yIGV2YWx1YXRpb24sIHdlIGltcGxlbWVudGVkIG1hZSBhbmQgcmFua2VkIHNjb3JpbmcuIEluIG9yZGVyIHRvIGZpbmQgdGhlIHN1aXRhYmxlIHRocmVzaG9sZCBhbmQgdGhlIGJlc3Qgbiwgd2UgdHVuZWQgdGhvc2UgcGFyYW1ldGVycyBpbiBzdGVwIDMuICAKXG5ld2xpbmUKSW4gc3RlcCA1IGFuZCA2LCB3ZSBpbXBsZW1lbnRlZCBhbmQgZXZhbHVhdGVkIHRoZSBwZXJmb3JtYW5jZSBvZiBhIG1vZGVsIGJhc2VkIG1ldGhvZDogY2x1c3RlcmluZy4gCgpsb2FkIHBhY2thZ2VzCmBgYHtyfQpsaWJyYXJ5KHJlc2hhcGUyKQpsaWJyYXJ5KGdncGxvdDIpCmBgYAoKCiMgU3RlcCAxOiBMb2FkIERhdGEKYGBge3J9Cm1vdmllX3RyYWluX3JhdyA8LSByZWFkLmNzdignLi4vZGF0YS9kYXRhX3NhbXBsZS9lYWNobW92aWVfc2FtcGxlL2RhdGFfdHJhaW4uY3N2JyxoZWFkZXIgPSBUKQptb3ZpZV90ZXN0X3JhdyA8LSByZWFkLmNzdignLi4vZGF0YS9kYXRhX3NhbXBsZS9lYWNobW92aWVfc2FtcGxlL2RhdGFfdGVzdC5jc3YnLGhlYWRlciA9IFQpCk1TX3RyYWluX3JhdyA8LSByZWFkLmNzdignLi4vZGF0YS9kYXRhX3NhbXBsZS9NU19zYW1wbGUvZGF0YV90cmFpbi5jc3YnLGhlYWRlciA9IFQpCk1TX3Rlc3RfcmF3IDwtIHJlYWQuY3N2KCcuLi9kYXRhL2RhdGFfc2FtcGxlL01TX3NhbXBsZS9kYXRhX3Rlc3QuY3N2JyxoZWFkZXIgPSBUKQpgYGAKCiMjIFJlc2hhcGUgRGF0YQpgYGB7cn0KIyBtcyBkYXRhCnNvdXJjZSgnLi4vbGliL3ByZXByb2Nlc3MuUicpCiMjIGxvYWQgcHJvY2Vzc2VkIGRhdGEKbG9hZCgnLi4vb3V0cHV0L21zX3RyYWluLlJEYXRhJykKbG9hZCgnLi4vb3V0cHV0L21zX3Rlc3QuUkRhdGEnKQoKIyBtb3ZpZSBkYXRhCiMjIHRyYWluCmRjYXN0X3RyYWluIDwtIGRjYXN0KG1vdmllX3RyYWluX3JhdywgVXNlcn5Nb3ZpZSkKcm93bmFtZXMoZGNhc3RfdHJhaW4pIDwtIGRjYXN0X3RyYWluJFVzZXIKbW92aWVfdHJhaW4gPC0gZGNhc3RfdHJhaW5bLC0xXQojIyB0ZXN0CmRjYXN0X3Rlc3QgPC0gZGNhc3QobW92aWVfdGVzdF9yYXcsIFVzZXJ+TW92aWUpCnJvd25hbWVzKGRjYXN0X3Rlc3QpIDwtIGRjYXN0X3Rlc3QkVXNlcgptb3ZpZV90ZXN0IDwtIGRjYXN0X3Rlc3RbLC0xXQojIyBzYXZlIGZpbGUKc2F2ZWZpbGUgPSBGQUxTRQppZihzYXZlZmlsZSA9PSBUUlVFKSBzYXZlKG1vdmllX3RyYWluLG1vdmllX3Rlc3QsIGZpbGUgPSAnLi4vb3V0cHV0L21vdmllX3dpZGUuUkRhdGEnKQpsb2FkKCcuLi9vdXRwdXQvbW92aWVfd2lkZS5SRGF0YScpCmBgYAoKIyBTdGVwIDI6IENvbXB1dGUgU2ltaWxhcml0eSAod2VpZ2h0KQojIyBWZWN0b3IgU2ltaWxhcml0eQojIyMgTW92aWUgZGF0YQpgYGB7cn0KIyBsb2FkIHZlY3RvciBzaW1pbGFyaXR5IGZ1bmN0aW9uCnNvdXJjZSgnLi4vbGliL21hdF93ZWlnaHQuUicpCgojIHdoZXRoZXIgcnVuIHZlY3RvciBzaW1pbGFyaXR5IGFuZCB3aGV0aGVyIHNhdmUgY3N2IGZpbGUKcnVuLnZlYyA9IEZBTFNFCnNhdmUucmQgPSBGQUxTRQptb3ZpZV92ZWNfd2VpZ2h0IDwtIG1hdF93ZWlnaHQoZGF0YSA9IG1vdmllX3RyYWluX3JhdywgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi52ZWMgPSBydW4udmVjLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4ubXNkID0gRkFMU0UpCgojIHNhdmUgb3V0cHV0IGluIFJEYXRhCmlmKHNhdmUucmQgPT0gVFJVRSkgc2F2ZShtb3ZpZV92ZWNfd2VpZ2h0LCBmaWxlID0gJy4uL291dHB1dC9tb3ZpZV92ZWNfd2VpZ2h0LlJEYXRhJykKCiMgbG9hZCBvdXRwdXQgZGF0YQpsb2FkKCcuLi9vdXRwdXQvbW92aWVfdmVjX3dlaWdodC5SRGF0YScpCmBgYAoKIyMjIE1TIGRhdGEKYGBge3J9CiMgd2hldGhlciBydW4gdmVjdG9yIHNpbWlsYXJpdHkgYW5kIHdoZXRoZXIgc2F2ZSBjc3YgZmlsZQpydW4udmVjID0gRkFMU0UKc2F2ZS5yZCA9IEZBTFNFCm1zX3ZlY193ZWlnaHQgPC0gbWF0X3dlaWdodChkYXRhID0gbXNfdHJhaW4sIAogICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udmVjID0gcnVuLnZlYywKICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLm1zZCA9IEZBTFNFKQoKIyBzYXZlIG91dHB1dCBpbiBSRGF0YQppZihzYXZlLnJkID09IFRSVUUpIHNhdmUobXNfdmVjX3dlaWdodCwgZmlsZSA9ICcuLi9vdXRwdXQvbXNfdmVjX3dlaWdodC5SRGF0YScpCgojIGxvYWQgb3V0cHV0IGRhdGEKbG9hZCgnLi4vb3V0cHV0L21zX3ZlY193ZWlnaHQuUkRhdGEnKQpgYGAKCiMjIE1lYW4gU3FhdXJlIERpZmZlcmVuY2UKIyMjIE1vdmllIGRhdGEKYGBge3J9CiMgd2hldGhlciBydW4gdmVjdG9yIHNpbWlsYXJpdHkgYW5kIHdoZXRoZXIgc2F2ZSBjc3YgZmlsZQpydW4ubXNkID0gRkFMU0UKc2F2ZS5yZCA9IEZBTFNFCm1vdmllX21zZF9kaXNzaW1pbGFyIDwtIG1hdF93ZWlnaHQoZGF0YSA9IG1vdmllX3RyYWluX3JhdywgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnZlYyA9IEZBTFNFLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5tc2QgPSBydW4ubXNkKQojIGNvbnZlcnQgZGlzc2ltaWxhcml0eSB0byBzaW1pbGFyaXR5IHdlaWdodAptb3ZpZV9tc2Rfd2VpZ2h0IDwtIChtYXgobW92aWVfbXNkX2Rpc3NpbWlsYXIpIC0gbW92aWVfbXNkX2Rpc3NpbWlsYXIgKSAvCiAgKCBtYXgobW92aWVfbXNkX2Rpc3NpbWlsYXIpIC0gbWluKG1vdmllX21zZF9kaXNzaW1pbGFyKSApCgojIHNhdmUgb3V0cHV0IGluIFJEYXRhCmlmKHNhdmUucmQgPT0gVFJVRSkgc2F2ZShtb3ZpZV9tc2Rfd2VpZ2h0LCBmaWxlID0gJy4uL291dHB1dC9tb3ZpZV9tc2Rfd2VpZ2h0LlJEYXRhJykKCiMgbG9hZCBvdXRwdXQgZGF0YQpsb2FkKCcuLi9vdXRwdXQvbW92aWVfbXNkX3dlaWdodC5SRGF0YScpCgpgYGAKCiMjIyBNUyBkYXRhCmBgYHtyfQpydW4ubXNkID0gRkFMU0UKc2F2ZS5yZCA9IEZBTFNFCm1zX21zZF9kaXNzaW1pbGFyIDwtIG1hdF93ZWlnaHQoZGF0YSA9IG1zX3RyYWluLCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi52ZWMgPSBGQUxTRSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5tc2QgPSBydW4ubXNkKQoKIyBjb252ZXJ0IGRpc3NpbWlsYXJpdHkgdG8gc2ltaWxhcml0eSB3ZWlnaHQKbXNfbXNkX3dlaWdodCA8LSAobWF4KG1zX21zZF9kaXNzaW1pbGFyKSAtIG1zX21zZF9kaXNzaW1pbGFyICkgLwogICggbWF4KG1zX21zZF9kaXNzaW1pbGFyKSAtIG1pbihtc19tc2RfZGlzc2ltaWxhcikgKQoKIyBzYXZlIG91dHB1dCBpbiBSRGF0YQppZihzYXZlLnJkID09IFRSVUUpIHNhdmUobXNfbXNkX3dlaWdodCwgZmlsZSA9ICcuLi9vdXRwdXQvbXNfbXNkX3dlaWdodC5SRGF0YScpCgojIGxvYWQgb3V0cHV0IGRhdGEKbG9hZCgnLi4vb3V0cHV0L21zX21zZF93ZWlnaHQuUkRhdGEnKQpgYGAKCiMjIFNpbXJhbmsgKG1vdmllKQpOb3RlOiBzaW1yYW5rIG1ldGhvZCBpcyB3cml0dGVuIGluIHB5dGhvbgpgYGB7cn0KIyByZWFkIGluIHRoZSBzaW1yYW5rIHdlaWdodApsb2FkKCcuLi9vdXRwdXQvbW92aWVfc2ltcmFua193ZWlnaHQuUkRhdGEnKQpgYGAKCiMgU3RlcCAzOiBUdW5lIHBhcmFtZXRlcnMgZm9yIGRpZmZlcmVudCBzZWxlY3RpbmcgbmVpZ2hib3IgbWV0aG9kcwoKbG9hZCBmdW5jdGlvbnMKYGBge3J9CnNvdXJjZSgnLi4vbGliL3R1bmluZy5SJykKYGBgCgojIyBXZWlnaHQgVGhyZXNob2xkCmBgYHtyfQp0aHJlc2hvbGQgPC0gc2VxKDAuMSwwLjUsYnkgPSAwLjEpCmBgYAoKIyMgQmVzdC1uLWVzdGltYXRvcnMKYGBge3J9CmJlc3RuIDwtIHNlcSg1LCAyMDAsIGJ5ID0gNSkKYGBgCgojIyBDb21iaW5lCmBgYHtyfQp0aHJlc2hvbGQgPC0gc2VxKDAuMywwLjUsYnkgPSAwLjEpCmJlc3RuIDwtIHNlcSgxNiwgMzAsIGJ5ID0gMikKcGFyID0gbGlzdCh0aHJlc2hvbGQsYmVzdG4pCmBgYAoKIyMgZmluYWwgcGFyYW1ldGVyCmBgYHtyfQpiZXN0LnBhciA8LSBsaXN0KG4gPSA2MCwgdGhyZXNob2xkID0gMC42KQpgYGAKIyBTdGVwIDQ6IFByZWRpY3Rpb24gJiBFdmFsdWF0aW9uCgojIyBsb2FkIGZ1bmN0aW9ucwpgYGB7cn0Kc291cmNlKCcuLi9saWIvcHJlZGljdF9zY29yZS5SJykKYGBgCgojIyMgTVMgdGVzdCBQcmVkaWN0aW9uCmBgYHtyfQojIGNob3NlIHdoaWNoIHNlbGVjdGluZyBuZWlnaGJvciBtZXRob2QgdG8gdXNlCnJ1bi5iZXN0biA9IFRSVUUKcnVuLnRocmVzaG9sZCA9IFRSVUUKcnVuLnByZWQgPSBGQUxTRQppZihydW4ucHJlZCl7CiAgIyB1c2luZyB2ZWN0b3Igc2ltaWxhcml0eSB3ZWlnaHQKICBwcmVkLm1zLnZlYyA8LSBwcmVkaWN0LnNjb3JlLm1zKG1zX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXNfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX3ZlY193ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udGhyZXNob2xkID0gcnVuLnRocmVzaG9sZCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKICAjIHVzaW5nIG1zZCB3ZWlnaHQKICBwcmVkLm1zLm1zZCA8LSBwcmVkaWN0LnNjb3JlLm1zKG1zX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXNfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX21zZF93ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udGhyZXNob2xkID0gcnVuLnRocmVzaG9sZCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKfQpgYGAKCiMjIE1vdmllIERhdGEKYGBge3J9CiMgY2hvc2Ugd2hpY2ggc2VsZWN0aW5nIG5laWdoYm9yIG1ldGhvZCB0byB1c2UKcnVuLmJlc3RuID0gVFJVRQpydW4udGhyZXNob2xkID0gVFJVRQpydW4ucHJlZCA9IEZBTFNFCmlmKHJ1bi5wcmVkKXsKICAjIHVzaW5nIHZlY3RvciBzaW1pbGFyaXR5IHdlaWdodAogIHByZWQubW92aWUudmVjIDwtIHByZWRpY3Quc2NvcmUubW92aWUobW92aWVfdHJhaW4sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtb3ZpZV90ZXN0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbW92aWVfdmVjX3dlaWdodCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhciA9IGJlc3QucGFyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnRocmVzaG9sZCA9IHJ1bi50aHJlc2hvbGQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4uYmVzdG4gPSBydW4uYmVzdG4pCiAgIyB1c2luZyBtc2Qgc2ltaWxhcml0eSB3ZWlnaHQKICBwcmVkLm1vdmllLm1zZCA8LSBwcmVkaWN0LnNjb3JlLm1vdmllKG1vdmllX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbW92aWVfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1vdmllX21zZF93ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYXIgPSBiZXN0LnBhciwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi50aHJlc2hvbGQgPSBydW4udGhyZXNob2xkLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLmJlc3RuID0gcnVuLmJlc3RuKQogICMgdXNpbmcgc2ltcmFuayB3ZWlnaHQKICBwcmVkLm1vdmllLnNpbXJhbmsgPC0gcHJlZGljdC5zY29yZS5tb3ZpZShtb3ZpZV90cmFpbiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtb3ZpZV90ZXN0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1vdmllX3NpbXJhbmtfd2VpZ2h0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhciA9IGJlc3QucGFyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi50aHJlc2hvbGQgPSBydW4udGhyZXNob2xkLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKfQpgYGAKCiMjIE1BRQpsb2FkIGZ1bmN0aW9ucwpgYGB7cn0Kc291cmNlKCcuLi9saWIvbWFlLlInKQpgYGAKCiMjIyBNQUUgZm9yIE1vdmllIERhdGEKYGBge3J9CnJ1bi5NQUUgPSBGQUxTRQppZihydW4uTUFFKXsKICBtYWUubW92aWUudmVjIDwtIE1BRShwcmVkLm1vdmllLnZlYywgbW92aWVfdGVzdCkKICBtYWUubW92aWUudmVjCn0KYGBgCgojIyBSYW5rIFNjb3JlCmxvYWQgZnVuY3Rpb25zCmBgYHtyfQpzb3VyY2UoJy4uL2xpYi9yYW5rZWRfc2NvcmluZy5SJykKYGBgCiMjIyBSYW5rIHNjb3JlIE1TIERhdGEKYGBge3J9CnJ1bi5yYW5rc2NvcmUgPSBGQUxTRQppZihydW4ucmFua3Njb3JlKXsKICByYW5rc2NvcmUubXMudmVjIDwtIHJhbmtfbWF0cml4KHByZWQubXMudmVjLCBtc190ZXN0KQogIHJhbmtzY29yZS5tcy52ZWMKfQpgYGAKCiMjCiMgU3RlcCA1OiBNb2RlbC1iYXNlZCBBbGdvcml0aG0KIyMgQ2x1c3RlcmluZyAoTVMgRGF0YXNldCkKIyMjIENyb3NzIFZhbGlkYXRpbmcgdGhlIGNsdXN0ZXIgbW9kZWwgdG8gZmluZCBiZXN0IGNsdXN0ZXIgbnVtYmVyIEMKYGBge3J9CnNvdXJjZSgiLi4vbGliL2NsdXN0ZXJfbW9kZWwuUiIpCgpwcmVwcm9jZXNzX2Zvcl9jbHVzdGVyKHByZXByb2Nlc3MudHJhaW4gPSBGLCBwcmVwcm9jZXNzLnRlc3QgPSBGLCByZXNoYXBlLnRyYWluID0gRiwgcmVzaGFwZS50ZXN0ID0gRikKCmxvYWQoIi4uL291dHB1dC9tc190cmFpbl93aWRlLlJEYXRhIikKbG9hZCgiLi4vb3V0cHV0L21zX3Rlc3Rfd2lkZS5SRGF0YSIpCgpsaXN0X29mX2l0ZW1zIDwtIG5hbWVzKHRyYWluWywtMV0pCgpjcm9zcy52YWxpZGF0ZS5tb2RlbC5jbHVzdGVyaW5nIDwtIEZBTFNFCmlmKGNyb3NzLnZhbGlkYXRlLm1vZGVsLmNsdXN0ZXJpbmcpewogIHIgPC0gYygpCiAgcGFyYW1ldGVycyA8LSBjKDQsNSw2LDcsOCkKICBmb3IocGFyIGluIHBhcmFtZXRlcnMpewogICAgdHJhaW5lZC5jbHVzdGVyLm1vZGVsIDwtIHRyYWluLmNsdXN0ZXIubW9kZWwodHJhaW4sIEMgPSBwYXIpCiAgICBnIDwtIHRyYWluZWQuY2x1c3Rlci5tb2RlbCRnYW1tYV9hcnJheQogICAgbSA8LSB0cmFpbmVkLmNsdXN0ZXIubW9kZWwkbXUKICAgIHAgPC0gdHJhaW5lZC5jbHVzdGVyLm1vZGVsJHBpX21hdAogICAgdGVzdGluZyA8LSB0ZXN0LmNsdXN0ZXIubW9kZWwodGVzdCwgZ2FtbWFfYXJyYXkgPSBnLCBtdSA9IG0sIHBpX21hdCA9IHAsIGxpc3Rfb2ZfaXRlbXMgPSBsaXN0X29mX2l0ZW1zKQogICAgciA8LSBjKHIsIHRlc3RpbmckcikKICAgIHByaW50KHBhc3RlKCJGb3IgbnVtYmVyIG9mIGNsdXN0ZXJzIGVxdWFsIHRvOiIsIHBhciwgIlJhbmsgc2NvcmU6IiwgdGVzdGluZyRyKSkKICB9CiAgCiAgdCA8LSBtYXRyaXgoTkEsIG5jb2wgPSBsZW5ndGgocGFyYW1ldGVycyksIG5yb3cgPSAyKQogIHRbMSxdIDwtIHBhcmFtZXRlcnMKICB0WzIsXSA8LSByCiAgcm93bmFtZXModCkgPC0gYygiQyIsICJSYW5rIFNjb3JlIikKICBzYXZlKHQsIGZpbGUgPSAiLi4vb3V0cHV0L2N2X2NsdXN0ZXJfcmFua19zY29yZS5SZGF0YSIpCn0KCmBgYAoKIyBTdGVwIDY6IEV2YWx1YXRpb24gZm9yIENsdXN0ZXIgbW9kZWwKIyMgUmFuayBTY29yZQpsb2FkIG91dHB1dCByYW5rIHNjb3JlCmBgYHtyfQpsb2FkKCIuLi9vdXRwdXQvY3ZfY2x1c3Rlcl9yYW5rX3Njb3JlLlJkYXRhIikKYGBgCnByaW50IG91dHB1dApgYGB7cn0KcHJpbnQodCkKYmVzdC5DIDwtIGFzLm51bWVyaWModFsxLCB3aGljaC5tYXgodFsyLF0pXSkKYmVzdC5yYW5rLnNjb3JlIDwtIGFzLm51bWVyaWMobWF4KHRbMixdKSkKcHJpbnQocGFzdGUoIlRoZSBiZXN0IGNsdXN0ZXIgbnVtYmVyIGlzOiIsIGJlc3QuQywgIi4gUmFuayBzY29yZSBpczoiLCBiZXN0LnJhbmsuc2NvcmUpKQpgYGAKCg==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUHJvamVjdCA0IgpvdXRwdXQ6CiAgaHRtbF9kb2N1bWVudDoKICAgIGRmX3ByaW50OiBwYWdlZAogIGh0bWxfbm90ZWJvb2s6IGRlZmF1bHQKICBwZGZfZG9jdW1lbnQ6IGRlZmF1bHQKLS0tCiMgT3ZlcnZpZXcKSW4gdGhpcyBwcm9qZWN0LCB3ZSBhaW0gdG8gcHJlZGljdCB1c2VyLWl0ZW0gc2NvcmUgdGhyb3VnaCBjb2xsYWJvcmF0aXZlIGZpbHRlcmluZy4gSW4gdGhlIG1lbW9lcnkgYmFzZWQgbWV0aG9kcywgd2UgYWRvcHRlZCAzIHNpbWlsYXJpdHkgbWV0cmljcyAodmVjdG9yIHNpbWlsYXJpdHksIG1lYW4gc3F1YXJlIGRpZmZlcmVuY2UgYW5kIHNpbXJhbmspIHRvIGNhbGN1bGF0ZSB3ZWlnaHQsIGluIHN0ZXAgMi5BbmQgdGhlbiwgd2UgdXNlZCB3ZWlnaHQgdGhyZXNob2xkIGFuZCBiZXN0LW4tZXN0aW1hdG9yLCBvciBhIGNvbWJpbmF0aW9uIG9mIGJvdGggdG8gc2VsZWN0IG5laWdoYm91cnMuIEFzIGZvciBldmFsdWF0aW9uLCB3ZSBpbXBsZW1lbnRlZCBtYWUgYW5kIHJhbmtlZCBzY29yaW5nLiBJbiBvcmRlciB0byBmaW5kIHRoZSBzdWl0YWJsZSB0aHJlc2hvbGQgYW5kIHRoZSBiZXN0IG4sIHdlIHR1bmVkIHRob3NlIHBhcmFtZXRlcnMgaW4gc3RlcCAzLiAgClxuZXdsaW5lCgpJbiBzdGVwIDUgYW5kIDYsIHdlIGltcGxlbWVudGVkIHRoZSBtb2RlbCBiYXNlZCBtZXRob2Q6IGNsdXN0ZXIgbW9kZWwuIFdlIGZpcnN0IGltcGxlbWVudGVkIHRoZSBFTSBhbGdvcml0aG0gaW4gdGhlIHRyYWluaW5nIHByb2Nlc3MsIGFuZCBidWlsZCBhIHRlc3QgZnVuY3Rpb24gd2hpY2ggaW52b2x2ZXMgY2x1c3RlciBtb2RlbCBwcmVkaWN0aW9uIGFuZCBldmFsdWF0aW9uIChyYW5rIHNjb3JpbmcpLiBBbmQgdGhlbiB3ZSB0dW5lIHBhcmFtZXRlcnMgdG8gY2hvb3NlIHRoZSBiZXN0IHBhcmFtZXRlciDDsyBudW1iZXIgb2YgY2x1c3Rlci4KCmxvYWQgcGFja2FnZXMKYGBge3J9CmlmKCFyZXF1aXJlKHJlc2hhcGUyKSkgaW5zdGFsbC5wYWNrYWdlcygicmVzaGFwZTIiKSAKaWYoIXJlcXVpcmUoZ2dwbG90MikpIGluc3RhbGwucGFja2FnZXMoImdncGxvdDIiKSAKaWYoIXJlcXVpcmUoanBlZykpIGluc3RhbGwucGFja2FnZXMoImpwZWciKQpsaWJyYXJ5KHJlc2hhcGUyKQpsaWJyYXJ5KGdncGxvdDIpCmxpYnJhcnkoanBlZykKYGBgCgoKIyBTdGVwIDE6IExvYWQgRGF0YQpgYGB7cn0KbW92aWVfdHJhaW5fcmF3IDwtIHJlYWQuY3N2KCcuLi9kYXRhL2RhdGFfc2FtcGxlL2VhY2htb3ZpZV9zYW1wbGUvZGF0YV90cmFpbi5jc3YnLGhlYWRlciA9IFQpCm1vdmllX3Rlc3RfcmF3IDwtIHJlYWQuY3N2KCcuLi9kYXRhL2RhdGFfc2FtcGxlL2VhY2htb3ZpZV9zYW1wbGUvZGF0YV90ZXN0LmNzdicsaGVhZGVyID0gVCkKTVNfdHJhaW5fcmF3IDwtIHJlYWQuY3N2KCcuLi9kYXRhL2RhdGFfc2FtcGxlL01TX3NhbXBsZS9kYXRhX3RyYWluLmNzdicsaGVhZGVyID0gVCkKTVNfdGVzdF9yYXcgPC0gcmVhZC5jc3YoJy4uL2RhdGEvZGF0YV9zYW1wbGUvTVNfc2FtcGxlL2RhdGFfdGVzdC5jc3YnLGhlYWRlciA9IFQpCmBgYAoKIyMgUmVzaGFwZSBEYXRhCmBgYHtyfQojIG1zIGRhdGEKc291cmNlKCcuLi9saWIvcHJlcHJvY2Vzcy5SJykKIyMgbG9hZCBwcm9jZXNzZWQgZGF0YQpsb2FkKCcuLi9vdXRwdXQvbXNfdHJhaW4uUkRhdGEnKQpsb2FkKCcuLi9vdXRwdXQvbXNfdGVzdC5SRGF0YScpCgojIG1vdmllIGRhdGEKIyMgdHJhaW4KZGNhc3RfdHJhaW4gPC0gZGNhc3QobW92aWVfdHJhaW5fcmF3LCBVc2Vyfk1vdmllKQpyb3duYW1lcyhkY2FzdF90cmFpbikgPC0gZGNhc3RfdHJhaW4kVXNlcgptb3ZpZV90cmFpbiA8LSBkY2FzdF90cmFpblssLTFdCiMjIHRlc3QKZGNhc3RfdGVzdCA8LSBkY2FzdChtb3ZpZV90ZXN0X3JhdywgVXNlcn5Nb3ZpZSkKcm93bmFtZXMoZGNhc3RfdGVzdCkgPC0gZGNhc3RfdGVzdCRVc2VyCm1vdmllX3Rlc3QgPC0gZGNhc3RfdGVzdFssLTFdCiMjIHNhdmUgZmlsZQpzYXZlZmlsZSA9IEZBTFNFCmlmKHNhdmVmaWxlID09IFRSVUUpIHNhdmUobW92aWVfdHJhaW4sbW92aWVfdGVzdCwgZmlsZSA9ICcuLi9vdXRwdXQvbW92aWVfd2lkZS5SRGF0YScpCmxvYWQoJy4uL291dHB1dC9tb3ZpZV93aWRlLlJEYXRhJykKYGBgCgojIFN0ZXAgMjogQ29tcHV0ZSBTaW1pbGFyaXR5ICh3ZWlnaHQpCiMjIFZlY3RvciBTaW1pbGFyaXR5CiMjIyBNb3ZpZSBkYXRhCmBgYHtyfQojIGxvYWQgdmVjdG9yIHNpbWlsYXJpdHkgZnVuY3Rpb24Kc291cmNlKCcuLi9saWIvbWF0X3dlaWdodC5SJykKCiMgd2hldGhlciBydW4gdmVjdG9yIHNpbWlsYXJpdHkgYW5kIHdoZXRoZXIgc2F2ZSBjc3YgZmlsZQpydW4udmVjID0gRkFMU0UKc2F2ZS5yZCA9IEZBTFNFCm1vdmllX3ZlY193ZWlnaHQgPC0gbWF0X3dlaWdodChkYXRhID0gbW92aWVfdHJhaW5fcmF3LCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnZlYyA9IHJ1bi52ZWMsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5tc2QgPSBGQUxTRSkKCiMgc2F2ZSBvdXRwdXQgaW4gUkRhdGEKaWYoc2F2ZS5yZCA9PSBUUlVFKSBzYXZlKG1vdmllX3ZlY193ZWlnaHQsIGZpbGUgPSAnLi4vb3V0cHV0L21vdmllX3ZlY193ZWlnaHQuUkRhdGEnKQoKIyBsb2FkIG91dHB1dCBkYXRhCmxvYWQoJy4uL291dHB1dC9tb3ZpZV92ZWNfd2VpZ2h0LlJEYXRhJykKYGBgCgojIyMgTVMgZGF0YQpgYGB7cn0KIyB3aGV0aGVyIHJ1biB2ZWN0b3Igc2ltaWxhcml0eSBhbmQgd2hldGhlciBzYXZlIGNzdiBmaWxlCnJ1bi52ZWMgPSBGQUxTRQpzYXZlLnJkID0gRkFMU0UKbXNfdmVjX3dlaWdodCA8LSBtYXRfd2VpZ2h0KGRhdGEgPSBtc190cmFpbiwgCiAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi52ZWMgPSBydW4udmVjLAogICAgICAgICAgICAgICAgICAgICAgICAgICBydW4ubXNkID0gRkFMU0UpCgojIHNhdmUgb3V0cHV0IGluIFJEYXRhCmlmKHNhdmUucmQgPT0gVFJVRSkgc2F2ZShtc192ZWNfd2VpZ2h0LCBmaWxlID0gJy4uL291dHB1dC9tc192ZWNfd2VpZ2h0LlJEYXRhJykKCiMgbG9hZCBvdXRwdXQgZGF0YQpsb2FkKCcuLi9vdXRwdXQvbXNfdmVjX3dlaWdodC5SRGF0YScpCmBgYAoKIyMgTWVhbiBTcWF1cmUgRGlmZmVyZW5jZQojIyMgTW92aWUgZGF0YQpgYGB7cn0KIyB3aGV0aGVyIHJ1biB2ZWN0b3Igc2ltaWxhcml0eSBhbmQgd2hldGhlciBzYXZlIGNzdiBmaWxlCnJ1bi5tc2QgPSBGQUxTRQpzYXZlLnJkID0gRkFMU0UKbW92aWVfbXNkX2Rpc3NpbWlsYXIgPC0gbWF0X3dlaWdodChkYXRhID0gbW92aWVfdHJhaW5fcmF3LCAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udmVjID0gRkFMU0UsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLm1zZCA9IHJ1bi5tc2QpCiMgY29udmVydCBkaXNzaW1pbGFyaXR5IHRvIHNpbWlsYXJpdHkgd2VpZ2h0Cm1vdmllX21zZF93ZWlnaHQgPC0gKG1heChtb3ZpZV9tc2RfZGlzc2ltaWxhcikgLSBtb3ZpZV9tc2RfZGlzc2ltaWxhciApIC8KICAoIG1heChtb3ZpZV9tc2RfZGlzc2ltaWxhcikgLSBtaW4obW92aWVfbXNkX2Rpc3NpbWlsYXIpICkKCiMgc2F2ZSBvdXRwdXQgaW4gUkRhdGEKaWYoc2F2ZS5yZCA9PSBUUlVFKSBzYXZlKG1vdmllX21zZF93ZWlnaHQsIGZpbGUgPSAnLi4vb3V0cHV0L21vdmllX21zZF93ZWlnaHQuUkRhdGEnKQoKIyBsb2FkIG91dHB1dCBkYXRhCmxvYWQoJy4uL291dHB1dC9tb3ZpZV9tc2Rfd2VpZ2h0LlJEYXRhJykKCmBgYAoKIyMjIE1TIGRhdGEKYGBge3J9CnJ1bi5tc2QgPSBGQUxTRQpzYXZlLnJkID0gRkFMU0UKbXNfbXNkX2Rpc3NpbWlsYXIgPC0gbWF0X3dlaWdodChkYXRhID0gbXNfdHJhaW4sIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnZlYyA9IEZBTFNFLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLm1zZCA9IHJ1bi5tc2QpCgojIGNvbnZlcnQgZGlzc2ltaWxhcml0eSB0byBzaW1pbGFyaXR5IHdlaWdodAptc19tc2Rfd2VpZ2h0IDwtIChtYXgobXNfbXNkX2Rpc3NpbWlsYXIpIC0gbXNfbXNkX2Rpc3NpbWlsYXIgKSAvCiAgKCBtYXgobXNfbXNkX2Rpc3NpbWlsYXIpIC0gbWluKG1zX21zZF9kaXNzaW1pbGFyKSApCgojIHNhdmUgb3V0cHV0IGluIFJEYXRhCmlmKHNhdmUucmQgPT0gVFJVRSkgc2F2ZShtc19tc2Rfd2VpZ2h0LCBmaWxlID0gJy4uL291dHB1dC9tc19tc2Rfd2VpZ2h0LlJEYXRhJykKCiMgbG9hZCBvdXRwdXQgZGF0YQpsb2FkKCcuLi9vdXRwdXQvbXNfbXNkX3dlaWdodC5SRGF0YScpCmBgYAoKIyMgU2ltcmFuayAobW92aWUpCk5vdGU6IHNpbXJhbmsgbWV0aG9kIGlzIHdyaXR0ZW4gaW4gcHl0aG9uCmBgYHtyfQojIHJlYWQgaW4gdGhlIHNpbXJhbmsgd2VpZ2h0CmxvYWQoJy4uL291dHB1dC9tb3ZpZV9zaW1yYW5rX3dlaWdodC5SRGF0YScpCmBgYAoKIyBTdGVwIDM6IFR1bmUgcGFyYW1ldGVycyBmb3IgZGlmZmVyZW50IHNlbGVjdGluZyBuZWlnaGJvciBtZXRob2RzCkluIHRoaXMgcGFydCwgd2UgdXNlIGJlc3QgbiBuZWlnaGJvcnMsIHRocmVzaG9sZCBtZXRob2RzIGFuZCBhIGNvbWJpbmF0aW9uIG9mIGJvdGggdG8gc2VsZWN0IG5laWdoYm9ycy4gSG93ZXZlciwgYmVmb3JlIHdlIGdvIHN0cmFpZ2h0IHRvIGV2YWx1YXRpb24sIHdlIG5lZWQgdG8gaG93IG1hbnkgbmVpZ2hib3JzIHRvIGluY2x1ZGVkIGZvciBwcmVkaWN0aW9uLiBUaHVzLCB3ZSBuZWVkIHRvIHR1bmUgcGFyYW1ldGVycy4gIAoKRm9yIGJlc3Qtbi1uZWlnaGJvciwgbiByZXByZXNlbnRzIHRoZSBudW1iZXIgb2YgbmVpZ2hib3JzIHdlIHVzZSBmb3IgcHJlZGljdGlvbi4gU3RhcnRpbmcgd2l0aCBzbWFsbCBuLCBpbml0aWFsbHksIE1BRSB3b3VsZCBkZWNyZWFzZSBvciBSYW5rZWQgU2NvcmUgd291bGQgaW5jcmVhc2UgYXMgbiBpbmNyZWFzZXMsIHNpbmNlIG1vcmUgbmVpZ2hib3JzIG9mIGFuIHVzZXIgaXMgaW5jbHVkZWQuIEFzIG4gaW5jcmVhc2VzLCBtb3JlIGFuZCBtb3JlIGluZm9ybWF0aW9uIGlzIG9idGFpbmVkIGFuZCB1c2VkIGZvciBwcmVkaWN0aW9uLiBFdmVudHVhbGx5LCBNQUUgYW5kIFJhbmtlZCBTY29yZSB3aXRoIGNvbnZlcmFnZS4KCkZvciB0aHJlc2hvbGQgbWV0aG9kLCB3ZSBvbmx5IGluY2x1ZGVkIG5laWdoYm9ycyBoYXMgc2ltaWxhcml0eSBzY29yZXMgdGhhdCBhcmUgaGlnaGVyIHRoYW4gYSBjZXJ0YWluIHRocmVzaG9sZCBhbmQgdGhlIHRocmVzaG9sZCByYW5nZXMgZnJvbSAwIHRvIDEuICBUaHVzLCBjaG9vc2luZyBhIGdvb2QgdGhyZXNob2xkIGlzIGltcG9ydGFudC4gSWYgdGhlIHRocmVzaG9sZCBpcyB0b28gaGlnaCwgb25seSBmZXcgb3Igbm8gbmVpZ2hib3JzIHdpbGwgYmUgaW5jbHVkZWQuIFdoaWxlIGlmIHRoZSB0aHJlc2hvbGQgaXMgdG9vIGxvdywgdGhlbiBtYW55IG5laWdoYm9ycyBhcmUgaW5jbHVkZWQsIHdoaWNoIGNvdWxkIGJlIGxlc3MgaW5lZmZpY2llbnQgZHVyaW5nIHByZWRpY3Rpb24uIENvbXBhcmUgdG8gYmVzdC1uLW5laWdoYm9yLCB3aGVuIHRoZSB0aHJlc2hvbGQgaXMgY2xvc2UgdG8gMSwgbGVzcyBuZWlnYm9ycyBhcmUgc2VsZWN0ZWQsIHRodXMgdGhlIE1BRSB3b3VsZCBiZSBoaWdoLCB3aGVyZWFzIFJhbmtlZCBTY29yZSB3b3VsZCBiZSBsb3cuIEFzIHRocmVzaG9sZCBkZWNyZWFzZXMsIG1vcmUgbmVpZ2hib3JzIGFyZSBpbmNsdWRlZC4gU28gTUFFIHdvdWxkIGRlY3JlYXNlLCB3aGlsZSBSYW5rZWQgU2NvcmUgd291bGQgaW5jcmVhc2UgYW5kIHRoZXkgd291bGQgY29udmVyZ2UuCgpUaGUgcGVyZm9ybWFuY2VzIG9mIGRpZmZlcmVudCBwYXJhbWV0ZXJzIHZhbHVlcyBhcmUgc2hvd24gYmVsb3cuCgpsb2FkIGZ1bmN0aW9ucwpgYGB7cn0Kc291cmNlKCcuLi9saWIvdHVuaW5nLlInKQpgYGAKbG9hZCBvdXIgcmVzdWx0cyBpbnN0ZWFkIG9mIHJlcnVuIHRoZSBjb2RlcwpgYGB7cn0KcnVuLnR1bmUgPSBGQUxTRQpsb2FkKCcuLi9kYXRhL21vdmllX3ZlY19iZXN0bl9yZXN1bHQuUmRhdGEnKQpgYGAKCiMjIEJlc3Qtbi1lc3RpbWF0b3JzIGFuZCBldmFsdWF0ZSB3aXRoIHJhbmtzY29yZSAoTVMgZGF0YSB3aXRoIG1zZCB3ZWlnaHQpCmBgYHtyLG91dC53aWR0aCA9ICc4MCUnfQojIG1zIG1zZApuIDwtIHNlcSg1LDIwMCxieT01KQppZihydW4udHVuZSkgbXNfbXNkX2Jlc3RuIDwtIHR1bmluZ19tcyhtc190cmFpbixtc190ZXN0LG1zX21zZF93ZWlnaHQsJ2Jlc3RuJylbMTpsZW5ndGgobildCmtuaXRyOjppbmNsdWRlX2dyYXBoaWNzKCIuLi9maWdzL21zX21zZF9yYW5rc2NvcmUtbi5qcGVnIikKYGBgCgojIyBCZXN0LW4tZXN0aW1hdG9ycyBhbmQgZXZhbHVhdGUgd2l0aCBtYWUgKE1vdmllIGRhdGEgd2l0aCB2ZWN0b3Igd2VpZ2h0KQpgYGB7ciAsb3V0LndpZHRoID0gJzgwJSd9CiMgbW92aWUgdmVjCmlmKHJ1bi50dW5lKSBtb3ZpZV92ZWNfYmVzdG4gPC0gdHVuaW5nX21vdmllKG1vdmllX3RyYWluLG1vdmllX3Rlc3QsbW92aWVfdmVjX3dlaWdodCwgJ2Jlc3RuJylbMTpsZW5ndGgobildCm4gPC0gc2VxKDIsMzAsYnk9MikKa25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoIi4uL2ZpZ3MvbW92aWVfdmVjX21hZV9uLmpwZWciKQpgYGAKCgojIyBCZXN0LW4tZXN0aW1hdG9ycyBhbmQgZXZhbHVhdGUgd2l0aCBtYWUgKE1vdmllIGRhdGEgd2l0aCBzaW1yYW5rIHdlaWdodCkKYGBge3Isb3V0LndpZHRoID0gJzgwJSd9CiMgbW92aWUgc2ltcmFuayBiZXN0IG4KaWYocnVuLnR1bmUpIHsKICBtb3ZpZV9zaW1yYW5rX2Jlc3RuIDwtIHR1bmluZ19tcyhtc190cmFpbixtc190ZXN0LG1vdmllX3NpbXJhbmtfd2VpZ2h0LCdiZXN0bicpWzE6bGVuZ3RoKG4pXX0Ka25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoIi4uL2ZpZ3MvbW92aWVfc2ltcmFua19tYWUtbi5qcGVnIikKa25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoIi4uL2ZpZ3MvbW92aWVfc2ltcmFua19tYWUtbjIuanBlZyIpCmBgYAoKIyMgVGhyZXNob2xkIGFuZCBldmFsdWF0ZSB3aXRoIHJhbmtzY29yZSAoTVMgZGF0YSB3aXRoIG1zZCB3ZWlnaHQpCmBgYHtyLG91dC53aWR0aCA9ICc4MCUnfQp0aHJlc2hvbGQgPC0gc2VxKDAuMDUsMSxieT0wLjA1KQppZihydW4udHVuZSkgbXNfbXNkX3RocmVzaG9sZCA8LSB0dW5pbmdfbXMobXNfdHJhaW4sbXNfdGVzdCxtc19tc2Rfd2VpZ2h0LCAndGhyZXNob2xkJylbMTpsZW5ndGgodGhyZXNob2xkKV0Ka25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoIi4uL2ZpZ3MvbXNfbXNkX3JhbmtzY29yZS10aHJlc2hvbGQuanBlZyIpCmBgYAoKIyMgVGhyZXNob2xkIGFuZCBldmFsdWF0ZSB3aXRoIG1hZSAoTW92aWUgZGF0YSB3aXRoIHZlY3RvciB3ZWlnaHQpCmBgYHtyLG91dC53aWR0aCA9ICc4MCUnfQppZihydW4udHVuZSkgbW92aWVfdmVjX3RocmVzaG9sZCA8LSB0dW5pbmdfbW92aWUobW92aWVfdHJhaW4sbW92aWVfdGVzdCxtb3ZpZV92ZWNfd2VpZ2h0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAndGhyZXNob2xkJylbMTpsZW5ndGgodGhyZXNob2xkKV0Ka25pdHI6OmluY2x1ZGVfZ3JhcGhpY3MoIi4uL2ZpZ3MvbW92aWVfdmVjX21hZS10aHJlc2hvbGQuanBlZyIpCmBgYAoKIyMgQ29tYmluZQpgYGB7cn0KdGhyZXNob2xkIDwtIHNlcSgwLjA1LDEsYnk9MC4wNSkKbiA8LSBzZXEoNSwyMDAsYnk9NSkKcGFyID0gbGlzdCh0aHJlc2hvbGQsYmVzdG4gPSBuKQppZihydW4udHVuZSl7CiAgbXNfbXNkX3RocmVzaG9sZCA8LSB0dW5pbmdfbXMobXNfdHJhaW4sbXNfdGVzdCxtc19tc2Rfd2VpZ2h0LCAnY29tYmluZWQnKVsxOmxlbmd0aCh0aHJlc2hvbGQpXQp9CgpgYGAKCiMjIGZpbmFsIHBhcmFtZXRlcgpgYGB7cn0KYmVzdC5wYXIgPC0gbGlzdChuID0gNjAsIHRocmVzaG9sZCA9IDAuNikKYGBgCgoKIyBTdGVwIDQ6IFByZWRpY3Rpb24gJiBFdmFsdWF0aW9uCgojIyBsb2FkIGZ1bmN0aW9ucwpgYGB7cn0Kc291cmNlKCcuLi9saWIvcHJlZGljdF9zY29yZS5SJykKYGBgCgojIyMgTVMgdGVzdCBQcmVkaWN0aW9uCmBgYHtyfQojIGNob3NlIHdoaWNoIHNlbGVjdGluZyBuZWlnaGJvciBtZXRob2QgdG8gdXNlCnJ1bi5iZXN0biA9IFRSVUUKcnVuLnRocmVzaG9sZCA9IFRSVUUKcnVuLnByZWQgPSBGQUxTRQppZihydW4ucHJlZCl7CiAgIyB1c2luZyB2ZWN0b3Igc2ltaWxhcml0eSB3ZWlnaHQKICBwcmVkLm1zLnZlYyA8LSBwcmVkaWN0LnNjb3JlLm1zKG1zX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXNfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX3ZlY193ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udGhyZXNob2xkID0gcnVuLnRocmVzaG9sZCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKICAjIHVzaW5nIG1zZCB3ZWlnaHQKICBwcmVkLm1zLm1zZCA8LSBwcmVkaWN0LnNjb3JlLm1zKG1zX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbXNfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1zX21zZF93ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4udGhyZXNob2xkID0gcnVuLnRocmVzaG9sZCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKfQpgYGAKCiMjIE1vdmllIERhdGEKYGBge3J9CiMgY2hvc2Ugd2hpY2ggc2VsZWN0aW5nIG5laWdoYm9yIG1ldGhvZCB0byB1c2UKcnVuLmJlc3RuID0gVFJVRQpydW4udGhyZXNob2xkID0gVFJVRQpydW4ucHJlZCA9IEZBTFNFCmlmKHJ1bi5wcmVkKXsKICAjIHVzaW5nIHZlY3RvciBzaW1pbGFyaXR5IHdlaWdodAogIHByZWQubW92aWUudmVjIDwtIHByZWRpY3Quc2NvcmUubW92aWUobW92aWVfdHJhaW4sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtb3ZpZV90ZXN0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbW92aWVfdmVjX3dlaWdodCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhciA9IGJlc3QucGFyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLnRocmVzaG9sZCA9IHJ1bi50aHJlc2hvbGQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBydW4uYmVzdG4gPSBydW4uYmVzdG4pCiAgIyB1c2luZyBtc2Qgc2ltaWxhcml0eSB3ZWlnaHQKICBwcmVkLm1vdmllLm1zZCA8LSBwcmVkaWN0LnNjb3JlLm1vdmllKG1vdmllX3RyYWluLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbW92aWVfdGVzdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1vdmllX21zZF93ZWlnaHQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYXIgPSBiZXN0LnBhciwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi50aHJlc2hvbGQgPSBydW4udGhyZXNob2xkLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcnVuLmJlc3RuID0gcnVuLmJlc3RuKQogICMgdXNpbmcgc2ltcmFuayB3ZWlnaHQKICBwcmVkLm1vdmllLnNpbXJhbmsgPC0gcHJlZGljdC5zY29yZS5tb3ZpZShtb3ZpZV90cmFpbiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBtb3ZpZV90ZXN0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1vdmllX3NpbXJhbmtfd2VpZ2h0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhciA9IGJlc3QucGFyLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi50aHJlc2hvbGQgPSBydW4udGhyZXNob2xkLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJ1bi5iZXN0biA9IHJ1bi5iZXN0bikKfQpgYGAKCiMjIE1BRQpsb2FkIGZ1bmN0aW9ucwpgYGB7cn0Kc291cmNlKCcuLi9saWIvbWFlLlInKQpgYGAKCiMjIyBNQUUgZm9yIE1vdmllIERhdGEKYGBge3J9CnJ1bi5NQUUgPSBGQUxTRQppZihydW4uTUFFKXsKICBtYWUubW92aWUudmVjIDwtIE1BRShwcmVkLm1vdmllLnZlYywgbW92aWVfdGVzdCkKICBtYWUubW92aWUudmVjCn0KYGBgCgojIyBSYW5rIFNjb3JlCmxvYWQgZnVuY3Rpb25zCmBgYHtyfQpzb3VyY2UoJy4uL2xpYi9yYW5rZWRfc2NvcmluZy5SJykKYGBgCiMjIyBSYW5rIHNjb3JlIE1TIERhdGEKYGBge3J9CnJ1bi5yYW5rc2NvcmUgPSBGQUxTRQppZihydW4ucmFua3Njb3JlKXsKICByYW5rc2NvcmUubXMudmVjIDwtIHJhbmtfbWF0cml4KHByZWQubXMudmVjLCBtc190ZXN0KQogIHJhbmtzY29yZS5tcy52ZWMKfQpgYGAKCgojIyBSZXN1bHQKVXNpbmcgbXNkIGFzIHdlaWdodCB5aWVsZHMgdGhlIGJlc3QgcmVzdWx0LCB3aXRoIHJhbmtlZCBzY29yZSBvZiA0Ny41LgpTaW1pbGFybHksIGZvciBtb3ZpZSBkYXRhLCBtc2QgYWxzbyBnaXZlcyB0aGUgYmVzdCByZXN1bHQsIHdpdGggdGhlIHNtYWxsZXN0IE1BRSAwLjk2LgoKIyBTdGVwIDU6IE1vZGVsLWJhc2VkIEFsZ29yaXRobQojIyBDbHVzdGVyaW5nIChNUyBEYXRhc2V0KQojIyMgQ3Jvc3MgVmFsaWRhdGluZyB0aGUgY2x1c3RlciBtb2RlbCB0byBmaW5kIGJlc3QgY2x1c3RlciBudW1iZXIgQwpgYGB7cn0Kc291cmNlKCIuLi9saWIvY2x1c3Rlcl9tb2RlbC5SIikKCnByZXByb2Nlc3NfZm9yX2NsdXN0ZXIocHJlcHJvY2Vzcy50cmFpbiA9IEYsIHByZXByb2Nlc3MudGVzdCA9IEYsIHJlc2hhcGUudHJhaW4gPSBGLCByZXNoYXBlLnRlc3QgPSBGKQoKbG9hZCgiLi4vb3V0cHV0L21zX3RyYWluX3dpZGUuUkRhdGEiKQpsb2FkKCIuLi9vdXRwdXQvbXNfdGVzdF93aWRlLlJEYXRhIikKCmxpc3Rfb2ZfaXRlbXMgPC0gbmFtZXModHJhaW5bLC0xXSkKCmNyb3NzLnZhbGlkYXRlLm1vZGVsLmNsdXN0ZXJpbmcgPC0gRkFMU0UKaWYoY3Jvc3MudmFsaWRhdGUubW9kZWwuY2x1c3RlcmluZyl7CiAgciA8LSBjKCkKICBwYXJhbWV0ZXJzIDwtIGMoNCw1LDYsNyw4KQogIGZvcihwYXIgaW4gcGFyYW1ldGVycyl7CiAgICB0cmFpbmVkLmNsdXN0ZXIubW9kZWwgPC0gdHJhaW4uY2x1c3Rlci5tb2RlbCh0cmFpbiwgQyA9IHBhcikKICAgIGcgPC0gdHJhaW5lZC5jbHVzdGVyLm1vZGVsJGdhbW1hX2FycmF5CiAgICBtIDwtIHRyYWluZWQuY2x1c3Rlci5tb2RlbCRtdQogICAgcCA8LSB0cmFpbmVkLmNsdXN0ZXIubW9kZWwkcGlfbWF0CiAgICB0ZXN0aW5nIDwtIHRlc3QuY2x1c3Rlci5tb2RlbCh0ZXN0LCBnYW1tYV9hcnJheSA9IGcsIG11ID0gbSwgcGlfbWF0ID0gcCwgbGlzdF9vZl9pdGVtcyA9IGxpc3Rfb2ZfaXRlbXMpCiAgICByIDwtIGMociwgdGVzdGluZyRyKQogICAgcHJpbnQocGFzdGUoIkZvciBudW1iZXIgb2YgY2x1c3RlcnMgZXF1YWwgdG86IiwgcGFyLCAiUmFuayBzY29yZToiLCB0ZXN0aW5nJHIpKQogIH0KICAKICB0IDwtIG1hdHJpeChOQSwgbmNvbCA9IGxlbmd0aChwYXJhbWV0ZXJzKSwgbnJvdyA9IDIpCiAgdFsxLF0gPC0gcGFyYW1ldGVycwogIHRbMixdIDwtIHIKICByb3duYW1lcyh0KSA8LSBjKCJDIiwgIlJhbmsgU2NvcmUiKQogIHNhdmUodCwgZmlsZSA9ICIuLi9vdXRwdXQvY3ZfY2x1c3Rlcl9yYW5rX3Njb3JlLlJkYXRhIikKfQoKYGBgCgojIFN0ZXAgNjogRXZhbHVhdGlvbiBmb3IgQ2x1c3RlciBtb2RlbAojIyBSYW5rIFNjb3JlCmxvYWQgb3V0cHV0IHJhbmsgc2NvcmUKYGBge3J9CmxvYWQoIi4uL291dHB1dC9jdl9jbHVzdGVyX3Jhbmtfc2NvcmUuUmRhdGEiKQpgYGAKcHJpbnQgb3V0cHV0CmBgYHtyfQpwcmludCh0KQpiZXN0LkMgPC0gYXMubnVtZXJpYyh0WzEsIHdoaWNoLm1heCh0WzIsXSldKQpiZXN0LnJhbmsuc2NvcmUgPC0gYXMubnVtZXJpYyhtYXgodFsyLF0pKQpwcmludChwYXN0ZSgiVGhlIGJlc3QgY2x1c3RlciBudW1iZXIgaXM6IiwgYmVzdC5DLCAiLiBSYW5rIHNjb3JlIGlzOiIsIGJlc3QucmFuay5zY29yZSkpCmBgYAoKQmFzZWQgb24gdGhlIHZhbGlkYXRpb24gcmVzdWx0LCB3ZSBjaG9zZSBvdXIgdGhlIGJlc3QgcGFyYW1ldGVyIChudW1iZXIgb2YgY2x1c3RlcikgdG8gYmUgNC4gQW5kIHRoZSByZXN1bHRpbmcgZXZhbHVhdGlvbiBmcm9tIHRoZSB0ZXN0aW5nIHNldCBoYXMgcmFuayBzY29yZSBvZiA0MS4zMi4gCg==</div>
 
 
 
