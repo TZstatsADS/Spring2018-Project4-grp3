@@ -2,64 +2,72 @@
 ############# Predict score #################
 #############################################
 
-# load package
-library(tidyr)
-library(reshape2)
-
-# predict score
-
-predict.score <- function(train = movie_train,
-                          test = movie_test,
-                          weight_mat,
-                          para = list(threshold = 0.3,n = 10),
-                          run.threshold = FALSE,
-                          run.bestn = FALSE){
-  
-  #
-  if (max(train) > 2){
-  
-    Movie_mat <- dcast(train,User~Movie)
-    movie_rowmean <- rowMeans(Movie_mat[,-1],na.rm = T)
-    Movie_mat[,-1] <- Movie_mat[,-1] - movie_rowmean
-    rownames(Movie_mat) <- Movie_mat$User
-    Movie_mat[is.na(Movie_mat)]=0
-    train_data <- Movie_mat[,-1]
-  
-    pred <- matrix(0,nrow = length(unique(test$User)), ncol = length(unique(test$Movie)) )
-    rownames(pred) <- sort(unique(test$User))
-    colnames(pred) <- sort(unique(test$Movie))
-  }
-  else{
-    train_data <- train
-    movie_rowmean <- rep(0,nrow(test))
-    pred <- matrix(0,nrow = nrow(test), ncol = ncol(test))
-    rownames(pred) <- rownames(test)
-    colnames(pred) <- colnames(test)
-  }
-    cat("Begin computation, current progress is 0 %\n")
-    for(i in 1:nrow(pred)){
-      # print current progress
-      print(i)
-      if(i %% 2000 == 0) cat("current progress is",round(i * 100 / nrow(pred)),"%\n")
-      
-      this.neighbor <- select_neighbor(rownames(pred)[i],
-                                       weight_mat = weight_mat,
-                                       run.threshold = run.threshold,
-                                       run.bestn = run.bestn)
-      col.ind <- match(this.neighbor,colnames(weight_mat))
-      user.weight <- weight_mat[i, col.ind]
-      k <- 1 / sum(user.weight)
-      item.ind <- match(colnames(pred),colnames(train_data))
-      itemscore <- train_data[col.ind,item.ind]
-      pred[i, ] <- movie_rowmean[i] + k * (as.numeric(user.weight) %*% as.matrix(itemscore))
-     # if (i > 200) break
+# predict score for ms data
+predict.score.ms <- function(train,
+                             test,
+                             weight,
+                             par = list(threshold = 0.3,n = 60),
+                             run.threshold = FALSE,
+                             run.bestn = FALSE){
+  rownames(weight) <- rownames(train)
+  train_c <- train - rowMeans(train, na.rm = T)
+                
+  item <- colnames(test)
+  ind2 <- match(item, colnames(train))
+                            
+  mat <- matrix(0, ncol = ncol(test), nrow = nrow(test))
+  for (a in 1:nrow(test)){
+    nei <- select_neighbor(userid = rownames(test)[a],
+                           weight_mat = weight, 
+                           para = list(threshold = threshold,n = n),
+                           run.bestn = run.bestn,
+                           run.threshold = run.threshold)
+    if (sum(is.na(nei)) != 0 || length(nei) == 0) {
+      mat[a, ] <- rep(0,ncol(test))
+      next
+      }
+    ind <- match(nei, rownames(weight))
+    w <- weight[a, ind]
+    k <- sum(w)
+    v <- train_c[ind, ind2]
+    mat[a, ] <- (1/k)*(w %*% v)
     }
-    return(pred)
+  mat_final <- (rowMeans(train, na.rm =T)[1:665]) %*% t(rep(1, ncol(test))) + mat
+  return(mat_final)
 }
 
-# system.time(pred1 <- predict.score(train = movie_train,
-#                                   test = movie_test,
-#                                   weight_mat = weights,
-#                                   run.threshold = TRUE,
-#                                   run.bestn = TRUE)
-# )
+
+##########################################################################################
+
+# predict score for movie data
+predict.score.movie <- function(train, test, weight,
+                                par = list(threshold = 0.3,n = 60),
+                                run.threshold = FALSE,
+                                run.bestn = FALSE){
+  rownames(weight) <- rownames(train)
+  avg <- rowMeans(train, na.rm = T)
+  train_c <- train - avg
+  train_c[is.na(train_c)] <- 0
+  
+  item <- colnames(test)
+  ind2 <- match(item, colnames(train))
+  
+  mat <- matrix(0, ncol = ncol(test), nrow = nrow(test))
+  for (a in 1:nrow(test)){
+    nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
+                           para = list(threshold = threshold,n = n),
+                           run.bestn = run.bestn, run.threshold = run.threshold)
+    if (sum(is.na(nei)) != 0 || length(nei) == 0) {
+      mat[a, ] <- rep(0,ncol(test))
+      next
+    }
+    ind <- match(nei, rownames(weight))
+    w <- weight[a, ind]
+    k <- sum(w)
+    v <- data.matrix(train_c[ind, ind2])
+    mat[a, ] <- (1/k)*(w %*% v)
+  }
+  mat_final <- (avg[1:nrow(test)]) %*% t(rep(1, ncol(test))) + mat
+  return(mat_final)
+}
+

@@ -1,9 +1,7 @@
-predict.score1 <- function(train,
-                          test,
-                          weight,
-                          threshold = 0.3,n = 10,
-                          run.threshold = FALSE,
-                          run.bestn = FALSE){
+predict.score.movie <- function(train, test, weight,
+                           par = list(threshold = 0.3,n = 10),
+                           run.threshold = FALSE,
+                           run.bestn = FALSE){
   rownames(weight) <- rownames(train)
   avg <- rowMeans(train, na.rm = T)
   train_c <- train - avg
@@ -31,14 +29,3 @@ predict.score1 <- function(train,
   return(mat_final)
 }
 
-# check1 <- predict.score(train = ms_train1, test = ms_test1, weight = t1, run.threshold = T, run.bestn = T)
-# system.time(check2 <- predict.score(train = mo_train, test = mo_test, weight = vec_weights, run.threshold = T, run.bestn = T))
-# getwd()
-# load("vec_weights.RData")
-# vec_weights[is.na(vec_weights)] <- 0
-# vec_weights <- vec_weights + t(vec_weights)
-# diag(vec_weights) <- 1
-# dim(vec_weights)
-# rownames(vec_weights) <- colnames(vec_weights)
-# 
-# save(vec_weights, file = "vec_weights1.RData")
