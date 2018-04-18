@@ -2,6 +2,10 @@
 title: "Project 4"
 output: html_notebook
 ---
+# Overview
+In this project, we aim to predict user-item score through collaborative filtering. In the memoery based methods, we adopted 3 similarity metrics (vector similarity, mean square difference and simrank) to calculate weight, in step 2.And then, we used weight threshold and best-n-estimator, or a combination of both to select neighbours. As for evaluation, we implemented mae and ranked scoring. In order to find the suitable threshold and the best n, we tuned those parameters in step 3.  
+\newline
+In step 5 and 6, we implemented and evaluated the performance of a model based method: clustering. 
 
 load packages
 ```{r}
@@ -110,14 +114,12 @@ load('movie_vec.RData')
 
 ### MS data
 ```{r}
-run.msd = FALSE
+run.msd = T
 save.rd = FALSE
 ms_msd_train <- mat_weight(data = ms_train, 
                            run.vec = FALSE,
                            run.msd = run.msd)
-ms_msd_test <- mat_weight(data = ms_test, 
-                          run.vec = FALSE,
-                          run.msd = run.msd)
+
 # save output in RData
 if(save.rd == TRUE) save(ms_msd_train, ms_msd_test, file = 'ms_vec.RData')
 
@@ -134,7 +136,7 @@ Note: simrank method is written in python
 # Sace weight in output
 ```
 
-# Step 3: Cross validate parameters for different selecting neighbor methods
+# Step 3: Tune parameters for different selecting neighbor methods
 ## Weight Threshold
 ```{r}
 
@@ -175,7 +177,7 @@ Note: simrank method is written in python
 
 # Step 5: Model-based Algorithm
 ## Clustering (MS Dataset)
-### Cross Validating the cluster model to find best cluster number C
+### Tune the cluster model to find best cluster number C
 ```{r}
 source("../lib/cluster_model.R")
 

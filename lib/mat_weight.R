@@ -106,7 +106,7 @@ mat_weight <- function(data = movie_train,
   counti = 0
   for (i in unique.user){
     counti = counti + 1
-    
+
     # print current progress
     if(counti %% 40 == 0) cat("current progress is",round(counti * 100 / length(unique.user)),"%\n")
     
