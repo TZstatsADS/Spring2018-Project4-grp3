@@ -29,4 +29,8 @@ predict.score <- function(train,
                             return(mat_final)
 }
 
-#check1 <- predict.score(train = ms_train, test = ms_test, weight = ms_vec_weight, run.threshold = F, run.bestn = T)
+#check1 <- predict.score(train = ms_train, test = ms_test, weight = ms_vec_weight, run.threshold = T, run.bestn = F)
+# nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
+#                        para = list(threshold = 0.5,n = 10),
+#                        run.bestn = F, run.threshold = T)
+# length(nei)
