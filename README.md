@@ -11,7 +11,7 @@ Term: Spring 2018
 	+ Peifeng Hong(ph2534)
 	+ Wenshan Wang(ww2468)
 	+ Fan Yan(fy2232)
-	+ Sitong Chen(fy2232)
+	+ Sitong Chen(sc4283)
 	
 + Project summary: 
 For this project, we implemented different collaborative filtering algorithms on 2 datasets and evaluated the performances. Our team worked on:
