@@ -4,17 +4,20 @@ predict.score <- function(train,
                           threshold = 0.3,n = 10,
                           run.threshold = FALSE,
                           run.bestn = FALSE){
-                            rownames(weight) <- rownames(train)
-                            train_c <- train - rowMeans(train, na.rm = T)
+              rownames(weight) <- rownames(train)
+              train_c <- train - rowMeans(train, na.rm = T)
                             
-                            item <- colnames(test)
-                            ind2 <- match(item, colnames(train))
+              item <- colnames(test)
+              ind2 <- match(item, colnames(train))
                             
-                            mat <- matrix(0, ncol = ncol(test), nrow = nrow(test))
-                            for (a in 1:nrow(test)){
+              mat <- matrix(0, ncol = ncol(test), nrow = nrow(test))
+              for (a in 1:nrow(test)){
                               nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
                                                      para = list(threshold = threshold,n = n),
                                                      run.bestn = run.bestn, run.threshold = run.threshold)
+                              if (is.na(nei)) {
+                                mat[a, ] <- rep(0,ncol(test))
+                              }
                               ind <- match(nei, rownames(weight))
                               w <- weight[a, ind]
                               k <- sum(w)

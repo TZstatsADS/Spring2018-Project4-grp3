@@ -17,6 +17,9 @@ predict.score1 <- function(train,
     nei <- select_neighbor(userid = rownames(test)[a], weight_mat = weight, 
                            para = list(threshold = threshold,n = n),
                            run.bestn = run.bestn, run.threshold = run.threshold)
+    if (is.na(nei)) {
+          mat[a, ] <- rep(0,ncol(test))
+    }
     ind <- match(nei, rownames(weight))
     w <- weight[a, ind]
     k <- sum(w)
@@ -31,13 +34,10 @@ predict.score1 <- function(train,
 # system.time(check2 <- predict.score(train = mo_train, test = mo_test, weight = vec_weights, run.threshold = T, run.bestn = T))
 # getwd()
 # load("vec_weights.RData")
-
-#vec_weights[is.na(vec_weights)] <- 0
-#vec_weights <- vec_weights + t(vec_weights)
-#diag(vec_weights) <- 1
-#dim(vec_weights)
-#rownames(vec_weights) <- colnames(vec_weights)
- 
-#saveRDS(vec_weights, file = "movie_vec_weights.RData")
-#system.time(pred_movie <- predict.score1(train = mo_train, test = mo_test, weight = vec_weights, run.threshold = T, run.bestn = T))
-#MAE(pred_movie,mo_test)
+# vec_weights[is.na(vec_weights)] <- 0
+# vec_weights <- vec_weights + t(vec_weights)
+# diag(vec_weights) <- 1
+# dim(vec_weights)
+# rownames(vec_weights) <- colnames(vec_weights)
+# 
+# save(vec_weights, file = "vec_weights1.RData")
