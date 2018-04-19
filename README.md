@@ -13,20 +13,20 @@ Term: Spring 2018
 	+ Fan Yan(fy2232)
 	+ Sitong Chen(sc4283)
 	
-+ Project summary: 
++ Project summary:  
 For this project, we implemented different collaborative filtering algorithms on 2 datasets and evaluated the performances. Our team worked on:
 
 Memory-based Algorithm:  
 
 Similarity weight - Vector Similarity (Data1,2)  
-Similarity weight - Mean Square Difference (Data1,2)
-Similarity weight - SimRank (Data2)
-Variance weighting - No
-Selecting Neighbors - Weight Threshold (Data1,2)
-Selecting Neighbors - Best-n-estimator (Data1,2)
+Similarity weight - Mean Square Difference (Data1,2)  
+Similarity weight - SimRank (Data2)  
+Variance weighting - No  
+Selecting Neighbors - Weight Threshold (Data1,2)  
+Selecting Neighbors - Best-n-estimator (Data1,2)  
 Selecting Neighbors - Combined (Data1,2)
 
-Model-based Algorithm:
+Model-based Algorithm:  
 Cluster models (Data1)
 
 **Contribution statement**: ([Contribution Statement](doc/a_note_on_contributions.md)) All team members contributed equally in all stages of this project. All team members approve our work presented in this GitHub repository including this contributions statement. 
