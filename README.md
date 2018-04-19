@@ -16,7 +16,8 @@ Term: Spring 2018
 + Project summary: 
 For this project, we implemented different collaborative filtering algorithms on 2 datasets and evaluated the performances. Our team worked on:
 
-Memory-based Algorithm:
+Memory-based Algorithm:  
+
 Similarity weight - Vector Similarity (Data1,2)
 Similarity weight - Mean Square Difference (Data1,2)
 Similarity weight - SimRank (Data2)
