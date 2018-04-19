@@ -18,7 +18,7 @@ For this project, we implemented different collaborative filtering algorithms on
 
 Memory-based Algorithm:  
 
-Similarity weight - Vector Similarity (Data1,2)
+Similarity weight - Vector Similarity (Data1,2)  
 Similarity weight - Mean Square Difference (Data1,2)
 Similarity weight - SimRank (Data2)
 Variance weighting - No
